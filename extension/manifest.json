@@ -24,5 +24,14 @@
     "permissions": [
         "tabs",
         "downloads"
-    ]
+    ],
+    "commands": {
+        "toggle-highlight-content": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Space",
+                "mac": "Command+Shift+Space"
+            },
+            "description": "Toggle Highlight Content"
+        }
+    }
 }

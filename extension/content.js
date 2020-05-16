@@ -19,6 +19,7 @@ const deactivate = (source) => {
     if (source == "INTERNAL") {
         chrome.runtime.sendMessage("DEACTIVATE")
     }
+    clearSelectedCSS()
 }
 
 const highlightContent = (event) => {
@@ -32,7 +33,7 @@ const highlightContent = (event) => {
     selectedElements = filtered
     filtered.forEach(element => {
         const parent = element.parentElement
-        const childOfClass = document.querySelector(".CONTENT_SAVER_OVERLAY")
+        const childOfClass = parent.querySelector(".CONTENT_SAVER_OVERLAY")
         if (!childOfClass) {
             let div = document.createElement("span")
             div.className += "CONTENT_SAVER_OVERLAY"
@@ -65,6 +66,5 @@ const getSrcs = (event) => {
         // })
         chrome.runtime.sendMessage({ message: "DATA", data: srcs })
     }
-    clearSelectedCSS()
     deactivate("INTERNAL")
 }
