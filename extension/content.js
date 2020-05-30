@@ -10,6 +10,9 @@ chrome.runtime.onMessage.addListener(request => {
     if (request == "DEACTIVATE_CONTENT_HIGHLIGHT") {
         deactivate("EXTERNAL")
     }
+    if (request == "ERROR_DOWNLOAD_BLOB") {
+        alert("Could not download blob url, sorry.")
+    }
 })
 
 
@@ -61,10 +64,9 @@ const getSrcs = (event) => {
             }
         })
         console.log("SOURCES", srcs)
-        // srcs.forEach(src => {
-        //     chrome.tabs.create({ url: src })
-        // })
-        chrome.runtime.sendMessage({ message: "DATA", data: srcs })
+        if (srcs.length > 0) {
+            chrome.runtime.sendMessage({ message: "DATA", data: srcs })
+        }
     }
     deactivate("INTERNAL")
 }
