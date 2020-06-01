@@ -32,6 +32,16 @@ const highlightContent = (event) => {
     var filtered = elementsFromP.filter((element) => {
         return element.tagName == "IMG" || element.tagName == "VIDEO"
     })
+    // console.log(filtered)
+    var firsts = [filtered.find((element) => {
+        return element.tagName == "IMG"
+    }), filtered.find((element) => {
+        return element.tagName == "VIDEO"
+    })]
+    console.log("FIRSTS", firsts)
+    filtered = firsts.filter((element) => {
+        return element != null
+    })
     clearSelectedCSS()
     selectedElements = filtered
     filtered.forEach(element => {
