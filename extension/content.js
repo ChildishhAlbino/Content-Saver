@@ -34,9 +34,10 @@ const highlightContent = (event) => {
     })
     // console.log(filtered)
     var firsts = [filtered.find((element) => {
-        return element.tagName == "IMG"
-    }), filtered.find((element) => {
         return element.tagName == "VIDEO"
+    }),
+    filtered.find((element) => {
+        return element.tagName == "IMG"
     })]
     console.log("FIRSTS", firsts)
     filtered = firsts.filter((element) => {
@@ -67,6 +68,9 @@ const clearSelectedCSS = () => {
 const getSrcs = (event) => {
     if (selectedElements.length > 0) {
         var srcs = selectedElements.map((element) => {
+            if (element.currentSrc) {
+                return element.currentSrc
+            }
             if (element.src) {
                 return element.src
             } else {
