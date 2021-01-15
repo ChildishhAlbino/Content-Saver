@@ -23,7 +23,8 @@
     },
     "permissions": [
         "tabs",
-        "downloads"
+        "downloads",
+        "contextMenus"
     ],
     "commands": {
         "toggle-highlight-content": {
