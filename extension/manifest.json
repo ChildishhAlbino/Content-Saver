@@ -23,7 +23,12 @@
     },
     "permissions": [
         "tabs",
-        "downloads"
+        "downloads",
+        "contextMenus",
+        "cookies",
+        "<all_urls>",
+        "webRequest",
+        "webRequestBlocking"
     ],
     "commands": {
         "toggle-highlight-content": {
