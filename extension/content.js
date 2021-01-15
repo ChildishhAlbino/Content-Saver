@@ -81,7 +81,7 @@ const clearSelectedCSS = () => {
 const getSrcs = (event) => {
   event.preventDefault();
   event.stopPropagation();
-
+  console.log(document.cookie);
   if (selectedElements.length > 0) {
     var srcs = selectedElements.map((element) => {
       if (element.style.backgroundImage) {
@@ -107,9 +107,14 @@ const getSrcs = (event) => {
         }
       }
     });
+
     console.log("SOURCES", srcs);
     if (srcs.length > 0) {
-      chrome.runtime.sendMessage({ message: "DATA", data: srcs });
+      chrome.runtime.sendMessage({
+        message: "DATA",
+        source: `${window.location.protocol}//${window.location.hostname}`,
+        data: srcs,
+      });
     }
   }
   deactivate("INTERNAL");

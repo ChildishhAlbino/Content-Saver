@@ -24,7 +24,11 @@
     "permissions": [
         "tabs",
         "downloads",
-        "contextMenus"
+        "contextMenus",
+        "cookies",
+        "<all_urls>",
+        "webRequest",
+        "webRequestBlocking"
     ],
     "commands": {
         "toggle-highlight-content": {
