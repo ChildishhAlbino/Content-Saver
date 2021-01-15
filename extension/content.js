@@ -81,11 +81,9 @@ const clearSelectedCSS = () => {
 const getSrcs = (event) => {
   event.preventDefault();
   event.stopPropagation();
-  console.log(document.cookie);
   if (selectedElements.length > 0) {
     var srcs = selectedElements.map((element) => {
       if (element.style.backgroundImage) {
-        console.log(element.style.backgroundImage);
         const pattern = /https?:\/\/(www.)?[-a-zA-Z0-9@:%._+~#=]{1,256}.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
         let re = new RegExp(pattern);
         let match = element.style.backgroundImage.match(re);
@@ -109,10 +107,11 @@ const getSrcs = (event) => {
     });
 
     console.log("SOURCES", srcs);
+
     if (srcs.length > 0) {
       chrome.runtime.sendMessage({
         message: "DATA",
-        source: `${window.location.protocol}//${window.location.hostname}`,
+        source: `${window.location.protocol}//${window.location.hostname}${window.location.pathname}`,
         data: srcs,
       });
     }
