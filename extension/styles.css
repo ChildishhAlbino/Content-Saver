@@ -1,4 +1,4 @@
-.CONTENT_SAVER_OVERLAY {
+.CONTENT_SAVER_SELECTED {
   position: absolute;
   top: 0;
   left: 0;
@@ -7,6 +7,15 @@
   cursor: pointer;
 }
 
-.capture-cursor{
+.CONTENT_SAVER_HIGHLIGHT {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgba(214, 0, 214, 0.35);
+  z-index: 2;
+  cursor: pointer;
+}
+
+.capture-cursor {
   cursor: url(chrome-extension://__MSG_@@extension_id__/images/cursor.png), auto;
 }
