@@ -1,3 +1,6 @@
+const JSZip = require("jszip");
+const getUuid = require('uuid-by-string')
+const mime = require('mime-types')
 let activated = false;
 window.blobs = [];
 
@@ -28,39 +31,44 @@ chrome.runtime.onMessage.addListener((request) => {
     let data = new Set(request.data);
     data = Array.from(data);
     console.log("RECEIVED DATA:", data);
-    const [firstElement, ...remainder] = data;
-    console.log("SPLIT:", firstElement, remainder);
-    Promise.all([downloadItem(firstElement)]).then((item) => {
-      console.log(item);
-      let promises = remainder.map((element) => downloadItem(element));
-      Promise.all(promises).then((items) => {
-        console.log(items);
-        removeOnBeforeSendHeaders();
+    Promise.all(data.map((element) => downloadItem(element))).then((responses) => {
+      console.log('BLOBS', responses)
+      const zip = new JSZip();
+      responses.forEach((response) => {
+        if (response != null) {
+          const { element, blob } = response
+          const uuidHash = getUuid(element)
+          const extension = mime.extension(blob.type)
+          console.log(uuidHash, extension)
+          zip.file(`${uuidHash}.${extension}`, blob)
+        }
+
+      })
+      zip.generateAsync({ type: "blob" }).then(function (content) {
+        console.log(content);
+        const url = URL.createObjectURL(content)
+        chrome.downloads.download({
+          url,
+        });
       });
-    });
+      removeOnBeforeSendHeaders();
+    })
   }
 });
 
 const downloadItem = async (element) => {
   if (!element) {
-    return false;
+    return null;
   }
-  if (!element.includes("blob:")) {
-    // special edge case for tiktok
-    if (element.includes("tiktok")) {
-      await downloadTikTok(element);
-    } else {
-      chrome.downloads.download({
-        url: element,
-      });
-    }
+  else if (!element.includes("blob:")) {
+    return await downloadItem(element);
   } else {
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
       const tab = tabs[0];
       chrome.tabs.sendMessage(tab.id, "ERROR_DOWNLOAD_BLOB");
     });
+    return null
   }
-  return true;
 };
 
 const removeOnBeforeSendHeaders = () => {
@@ -77,19 +85,17 @@ const addOnBeforeSendHeaders = () => {
   );
 };
 
-const downloadTikTok = async (element) => {
+const downloadItem = async (element) => {
   addOnBeforeSendHeaders();
-  await fetch(element, {
+  return await fetch(element, {
     method: "GET",
     credentials: "same-origin",
   })
-    .then((data) => data.blob())
+    .then((data) => { console.log(data); return data.blob() })
     .then((blob) => {
       console.log(blob);
-      chrome.downloads.download({ url: URL.createObjectURL(blob) });
-    })
-    .then((blob) => {
-      return blob;
+      // chrome.downloads.download({ url: URL.createObjectURL(blob) });
+      return { element, blob };
     })
     .catch((error) => {
       console.log(error);

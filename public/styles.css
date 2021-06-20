@@ -17,5 +17,5 @@
 }
 
 .capture-cursor {
-  cursor: url(chrome-extension://__MSG_@@extension_id__/images/cursor.png), auto;
+  cursor: url(chrome-extension://__MSG_@@extension_id__/icons/icon_32.png), auto;
 }

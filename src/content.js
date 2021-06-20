@@ -1,4 +1,3 @@
-// const activated = true
 let selectedElements = [];
 const eventType = "mousedown";
 chrome.runtime.onMessage.addListener((request) => {

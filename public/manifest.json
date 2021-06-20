@@ -3,13 +3,18 @@
     "version": "1.0",
     "manifest_version": 2,
     "browser_action": {},
+    "icons": {
+        "32": "icons/icon_32.png",
+        "64": "icons/icon_64.png",
+        "128": "icons/icon_128.png"
+    },
     "content_scripts": [
         {
             "matches": [
                 "<all_urls>"
             ],
             "js": [
-                "content.js"
+                "contentScript.js"
             ],
             "css": [
                 "styles.css"
@@ -40,6 +45,6 @@
         }
     },
     "web_accessible_resources": [
-        "images/cursor.png"
+        "icons/*.png"
     ]
 }
