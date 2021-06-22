@@ -33,35 +33,47 @@ chrome.runtime.onMessage.addListener((request) => {
     console.log("RECEIVED DATA:", data);
     Promise.all(data.map((element) => downloadItem(element))).then((responses) => {
       console.log('BLOBS', responses)
-      const zip = new JSZip();
-      responses.forEach((response) => {
-        if (response != null) {
-          const { element, blob } = response
-          const uuidHash = getUuid(element)
-          const extension = mime.extension(blob.type)
-          console.log(uuidHash, extension)
-          zip.file(`${uuidHash}.${extension}`, blob)
-        }
-
-      })
-      zip.generateAsync({ type: "blob" }).then(function (content) {
-        console.log(content);
-        const url = URL.createObjectURL(content)
+      if (responses.length > 1) {
+        zipResponses(responses)
+      } else if (responses.length == 1) {
+        const url = URL.createObjectURL(responses[0].blob)
         chrome.downloads.download({
           url,
         });
-      });
+      } else {
+        console.log("List of response was empty.")
+      }
       removeOnBeforeSendHeaders();
     })
   }
 });
+
+const zipResponses = (responses => {
+  const zip = new JSZip();
+  responses.forEach((response) => {
+    if (response != null) {
+      const { element, blob } = response
+      const uuidHash = getUuid(element)
+      const extension = mime.extension(blob.type)
+      console.log(uuidHash, extension)
+      zip.file(`${uuidHash}.${extension}`, blob)
+    }
+  })
+  zip.generateAsync({ type: "blob" }).then(function (content) {
+    console.log(content);
+    const url = URL.createObjectURL(content)
+    chrome.downloads.download({
+      url,
+    });
+  });
+})
 
 const downloadItem = async (element) => {
   if (!element) {
     return null;
   }
   else if (!element.includes("blob:")) {
-    return await downloadItem(element);
+    return await getItemBlob(element);
   } else {
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
       const tab = tabs[0];
@@ -85,16 +97,15 @@ const addOnBeforeSendHeaders = () => {
   );
 };
 
-const downloadItem = async (element) => {
+const getItemBlob = async (element) => {
   addOnBeforeSendHeaders();
   return await fetch(element, {
     method: "GET",
     credentials: "same-origin",
   })
-    .then((data) => { console.log(data); return data.blob() })
+    .then((data) => { return data.blob() })
     .then((blob) => {
       console.log(blob);
-      // chrome.downloads.download({ url: URL.createObjectURL(blob) });
       return { element, blob };
     })
     .catch((error) => {
