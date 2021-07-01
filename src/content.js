@@ -1,3 +1,5 @@
+const { filter } = require("jszip");
+
 let selectedElements = [];
 const eventType = "mousedown";
 chrome.runtime.onMessage.addListener((request) => {
@@ -78,11 +80,15 @@ const hoverContent = (event) => {
       const parent = element.parentElement;
       const childOfClass = parent.querySelector(".CONTENT_SAVER_HIGHLIGHT");
       if (!childOfClass) {
+        parent.addEventListener("contextmenu", preventContextMenu);
         let div = document.createElement("span");
         div.className += "CONTENT_SAVER_HIGHLIGHT";
         div.style.height = `${element.offsetHeight}px`;
         div.style.width = `${element.offsetWidth}px`;
         div.contentSaverTargets = filtered;
+        div.clearListeners = () => {
+          parent.removeEventListener("contextmenu", preventContextMenu);
+        }
         parent.appendChild(div);
       }
     });
@@ -188,6 +194,11 @@ const getSrcs = () => {
   }
 };
 
+const preventContextMenu = e => {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
 const removeSelectedOverlay = (highlighted) => {
   highlighted.forEach((element) => {
     const parent = element.parentElement;
@@ -204,6 +215,9 @@ const removeSelectedOverlay = (highlighted) => {
 const clearHoverCSS = () => {
   let overlays = document.querySelectorAll(".CONTENT_SAVER_HIGHLIGHT");
   overlays.forEach((element) => {
+    if (element.clearListeners) {
+      element.clearListeners();
+    }
     element.parentElement.removeChild(element);
   });
 };
