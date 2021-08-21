@@ -31,11 +31,11 @@ const nodeAddedToDom = (event) => {
 };
 
 const clickOnContent = (event) => {
-  event.preventDefault();
-  event.stopPropagation();
   const target = event.target;
   console.log(target.tagName, target.contentSaverTargets);
   if (target.contentSaverTargets) {
+    event.preventDefault();
+    event.stopPropagation();
     selectContent(target.contentSaverTargets);
   }
 };
@@ -230,8 +230,17 @@ const clearSelectedCSS = () => {
 };
 
 const preventClicks = (event) => {
-  event.preventDefault();
-  event.stopPropagation();
+  var x = event.clientX,
+    y = event.clientY;
+  // on mouse down print out the element with the mouse is currently over
+  var elementsFromP = document.elementsFromPoint(x, y);
+  let button = elementsFromP.find((element) => {
+    return element.tagName === "BUTTON";
+  });
+  if (!button) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 };
 
 const deactivate = () => {

@@ -36,6 +36,7 @@ chrome.runtime.onMessage.addListener((request) => {
       if (responses.length > 1) {
         zipResponses(responses)
       } else if (responses.length == 1) {
+        console.log(responses)
         const url = URL.createObjectURL(responses[0].blob)
         chrome.downloads.download({
           url,
