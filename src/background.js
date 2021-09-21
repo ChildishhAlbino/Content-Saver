@@ -33,19 +33,8 @@ chrome.runtime.onMessage.addListener((request) => {
     console.log("RECEIVED DATA:", data);
     Promise.all(data.map((element) => downloadItem(element))).then((responses) => {
       console.log('BLOBS', responses)
-      if (responses.length > 1) {
+      if (responses.length > 0) {
         zipResponses(responses)
-      } else if (responses.length == 1) {
-        console.log(responses)
-        const [{ blob, text }] = responses
-        const filenameUUID = getUuid(text)
-        const url = URL.createObjectURL(blob)
-        const extension = mime.extension(blob.type)
-        console.log(filenameUUID, extension)
-        chrome.downloads.download({
-          url,
-          filename: `${filenameUUID}.${extension}`
-        });
       } else {
         console.log("List of response was empty.")
       }
@@ -62,7 +51,7 @@ const zipResponses = (responses => {
       const filenameUUID = getUuid(text)
       const extension = mime.extension(blob.type)
       console.log(filenameUUID, extension)
-      zip.file(`${filenameUUID}.${extension}`, blob)
+      zip.file(`./${filenameUUID}.${extension}`, blob)
     }
   })
   zip.generateAsync({ type: "blob" }).then(function (content) {
