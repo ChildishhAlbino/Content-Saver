@@ -1,7 +1,10 @@
+import superBase64 from 'super-base-64';
+import { v5 as uuidv5 } from 'uuid';
+
 const JSZip = require("jszip");
-const getUuid = require('uuid-by-string')
 const mime = require('mime-types')
 let activated = false;
+
 window.blobs = [];
 
 const toggleHighlight = () => {
@@ -18,7 +21,7 @@ let parent = chrome.contextMenus.create({
   onclick: toggleHighlight,
 });
 
-chrome.runtime.onMessage.addListener((request) => {
+chrome.runtime.onMessage.addListener(async (request) => {
   if (request == "DEACTIVATE") {
     activated = false;
     chrome.tabs.query({}, (tabs) => {
@@ -31,37 +34,54 @@ chrome.runtime.onMessage.addListener((request) => {
     let data = new Set(request.data);
     data = Array.from(data);
     console.log("RECEIVED DATA:", data);
-    Promise.all(data.map((element) => downloadItem(element))).then((responses) => {
-      console.log('BLOBS', responses)
-      if (responses.length > 0) {
-        zipResponses(responses)
-      } else {
-        console.log("List of response was empty.")
-      }
-      removeOnBeforeSendHeaders();
-    })
+    const responses = await Promise.all(data.map((element) => downloadItem(element)))
+    console.log('BLOBS', responses)
+    if (responses.length > 0) {
+      await zipResponses(responses)
+    } else {
+      console.log("List of response was empty.")
+    }
+    removeOnBeforeSendHeaders();
   }
 });
 
-const zipResponses = (responses => {
+const stripBase64 = (rawB64) => {
+  const commaIndex = rawB64.indexOf(',')
+  return rawB64.substring(commaIndex + 1);
+}
+
+const getBase64 = async (blob) => {
+  const b64 = await superBase64(blob)
+  const finalB64 = stripBase64(b64)
+  return finalB64
+}
+
+const NAMESPACE_URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
+const zipFile = async (response, zip) => {
+  if (response != null) {
+    const { blob } = response
+    const finalB64 = await getBase64(blob)
+    const filenameUUID = uuidv5(finalB64, NAMESPACE_URL)
+    const extension = mime.extension(blob.type)
+    console.log(filenameUUID, extension)
+    zip.file(`./${filenameUUID}.${extension}`, blob)
+  }
+}
+
+const zipResponses = async (responses) => {
   const zip = new JSZip();
-  responses.forEach((response) => {
-    if (response != null) {
-      const { element, blob, text } = response
-      const filenameUUID = getUuid(text)
-      const extension = mime.extension(blob.type)
-      console.log(filenameUUID, extension)
-      zip.file(`./${filenameUUID}.${extension}`, blob)
-    }
+  let promises = responses.map(async (response) => {
+    await zipFile(response, zip)
   })
-  zip.generateAsync({ type: "blob" }).then(function (content) {
-    console.log(content);
-    const url = URL.createObjectURL(content)
-    chrome.downloads.download({
-      url,
-    });
+  let resolved = await Promise.all(promises)
+  const content = await zip.generateAsync({ type: "blob" })
+
+  console.log(content);
+  const url = URL.createObjectURL(content)
+  chrome.downloads.download({
+    url,
   });
-})
+}
 
 const downloadItem = async (element) => {
   if (!element) {
@@ -99,10 +119,8 @@ const getItemBlob = async (element) => {
     credentials: "same-origin",
   })
     .then((data) => { return data.blob() })
-    .then(async (blob) => {
-      console.log(blob);
-      const text = await blob.text();
-      return { element, blob, text };
+    .then((blob) => {
+      return { element, blob };
     })
     .catch((error) => {
       console.log(error);
