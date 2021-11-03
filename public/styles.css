@@ -16,6 +16,15 @@
   cursor: pointer;
 }
 
+.CONTENT_SAVER_INACTIVE_HIGHLIGHT {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgba(7, 172, 43, 0.35);
+  z-index: 200;
+  cursor: pointer;
+}
+
 .capture-cursor {
   cursor: url(chrome-extension://__MSG_@@extension_id__/icons/icon_32.png), auto;
 }

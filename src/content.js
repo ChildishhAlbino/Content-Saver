@@ -1,5 +1,22 @@
 let selectedElements = [];
 const eventType = "mousedown";
+let softToggle = false;
+
+const selectedClassName = "CONTENT_SAVER_SELECTED"
+const activeHighlightClassName = "CONTENT_SAVER_HIGHLIGHT"
+const inactiveHighlightClassName = "CONTENT_SAVER_INACTIVE_HIGHLIGHT"
+let highlightClassName = activeHighlightClassName
+
+document.addEventListener('keydown', (event) => {
+  const key = event.key
+  console.log("TOAD KEY", key)
+  if (key === "`") {
+    softToggle = !softToggle;
+    clearHoverCSS()
+    highlightClassName = softToggle ? inactiveHighlightClassName : activeHighlightClassName
+  }
+});
+
 chrome.runtime.onMessage.addListener((request) => {
   if (request === "ACTIVATE_CONTENT_HIGHLIGHT") {
     document.addEventListener(eventType, clickOnContent);
@@ -21,6 +38,10 @@ chrome.runtime.onMessage.addListener((request) => {
   }
 });
 
+const toSelector = (className) => {
+  return `.${className}`
+}
+
 const nodeAddedToDom = (event) => {
   document.querySelectorAll("a").forEach((element) => {
     element.addEventListener("click", preventClicks);
@@ -30,17 +51,26 @@ const nodeAddedToDom = (event) => {
 
 const nodeRemovedFromDom = (event) => {
   const elementToBeRemoved = event.srcElement
-  const potentialSelectedOverlay = elementToBeRemoved.querySelector(".CONTENT_SAVER_SELECTED")
-  if (potentialSelectedOverlay) {
-    elementToBeRemoved.parentElement.appendChild(potentialSelectedOverlay)
-    console.log("Node removed. Parent adopted overlay element.")
+  if (elementToBeRemoved) {
+    const potentialSelectedOverlay = elementToBeRemoved.querySelector(toSelector(selectedClassName))
+    if (potentialSelectedOverlay) {
+      elementToBeRemoved.parentElement.appendChild(potentialSelectedOverlay)
+      console.log("Node removed. Parent adopted overlay element.")
+    }
   }
+}
+
+const isSpecialClick = (event) => {
+  const specialClick = (event.type === 'click' || event.type === eventType) && softToggle
+  return specialClick
 }
 
 const clickOnContent = (event) => {
   const target = event.target;
   console.log(target.tagName, target.contentSaverTargets);
-  if (target.contentSaverTargets) {
+  const specialClick = isSpecialClick(event)
+  console.log("TOAD CLICK ON CONTENT", event, specialClick)
+  if (target.contentSaverTargets && !isSpecialClick(event)) {
     event.preventDefault();
     event.stopPropagation();
     selectContent(target.contentSaverTargets);
@@ -85,11 +115,11 @@ const hoverContent = (event) => {
     clearHoverCSS();
     filtered.forEach((element) => {
       const parent = element.parentElement;
-      const childOfClass = parent.querySelector(".CONTENT_SAVER_HIGHLIGHT");
+      const childOfClass = parent.querySelector(toSelector(highlightClassName));
       if (!childOfClass) {
         parent.addEventListener("contextmenu", preventContextMenu);
         let div = document.createElement("span");
-        div.className += "CONTENT_SAVER_HIGHLIGHT";
+        div.className += highlightClassName;
         div.style.height = `${element.offsetHeight}px`;
         div.style.width = `${element.offsetWidth}px`;
         div.contentSaverTargets = filtered;
@@ -105,8 +135,8 @@ const hoverContent = (event) => {
 const isSelectedElement = (element) => {
   const parent = element.parentElement;
   const grandparent = parent.parentElement
-  const childOfParentClass = parent.querySelector(".CONTENT_SAVER_SELECTED");
-  const childOfGrandparentClass = grandparent.querySelector(".CONTENT_SAVER_SELECTED");
+  const childOfParentClass = parent.querySelector(toSelector(selectedClassName));
+  const childOfGrandparentClass = grandparent.querySelector(toSelector(selectedClassName));
   return childOfParentClass || childOfGrandparentClass;
 }
 
@@ -155,10 +185,10 @@ const addSelectedOverlay = (selected) => {
   selectedElements = [...selectedElements, ...filtered];
   filtered.forEach((element) => {
     const parent = element.parentElement;
-    const childOfClass = parent.querySelector(".CONTENT_SAVER_SELECTED");
+    const childOfClass = parent.querySelector(toSelector(selectedClassName));
     if (!childOfClass) {
       let div = document.createElement("span");
-      div.className += "CONTENT_SAVER_SELECTED";
+      div.className += selectedClassName;
       div.style.height = `${element.offsetHeight}px`;
       div.style.width = `${element.offsetWidth}px`;
       parent.appendChild(div);
@@ -214,7 +244,7 @@ const preventContextMenu = e => {
 const removeSelectedOverlay = (highlighted) => {
   highlighted.forEach((element) => {
     const parent = element.parentElement;
-    const selector = parent.querySelector(".CONTENT_SAVER_SELECTED");
+    const selector = parent.querySelector(toSelector(selectedClassName));
     if (selector) {
       selector.parentElement.removeChild(selector);
     }
@@ -225,7 +255,7 @@ const removeSelectedOverlay = (highlighted) => {
 };
 
 const clearHoverCSS = () => {
-  let overlays = document.querySelectorAll(".CONTENT_SAVER_HIGHLIGHT");
+  let overlays = document.querySelectorAll(toSelector(highlightClassName));
   overlays.forEach((element) => {
     if (element.clearListeners) {
       element.clearListeners();
@@ -235,7 +265,7 @@ const clearHoverCSS = () => {
 };
 
 const clearSelectedCSS = () => {
-  let overlays = document.querySelectorAll(".CONTENT_SAVER_SELECTED");
+  let overlays = document.querySelectorAll(toSelector(selectedClassName));
   overlays.forEach((element) => {
     element.parentElement.removeChild(element);
   });
@@ -249,7 +279,7 @@ const preventClicks = (event) => {
   let button = elementsFromP.find((element) => {
     return element.tagName === "BUTTON";
   });
-  if (!button) {
+  if (!button && !isSpecialClick(event)) {
     event.preventDefault();
     event.stopPropagation();
   }
