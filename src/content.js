@@ -1,5 +1,3 @@
-const { filter } = require("jszip");
-
 let selectedElements = [];
 const eventType = "mousedown";
 chrome.runtime.onMessage.addListener((request) => {
@@ -11,6 +9,7 @@ chrome.runtime.onMessage.addListener((request) => {
       document.body.className += " capture-cursor";
     }
     document.addEventListener("DOMNodeInserted", nodeAddedToDom);
+    document.addEventListener("DOMNodeRemoved", nodeRemovedFromDom);
   }
 
   if (request === "DEACTIVATE_CONTENT_HIGHLIGHT") {
@@ -23,12 +22,20 @@ chrome.runtime.onMessage.addListener((request) => {
 });
 
 const nodeAddedToDom = (event) => {
-  console.log("NODE ADDED TO DOM");
   document.querySelectorAll("a").forEach((element) => {
     element.addEventListener("click", preventClicks);
     element.parentElement.addEventListener("click", preventClicks);
   });
 };
+
+const nodeRemovedFromDom = (event) => {
+  const elementToBeRemoved = event.srcElement
+  const potentialSelectedOverlay = elementToBeRemoved.querySelector(".CONTENT_SAVER_SELECTED")
+  if (potentialSelectedOverlay) {
+    elementToBeRemoved.parentElement.appendChild(potentialSelectedOverlay)
+    console.log("Node removed. Parent adopted overlay element.")
+  }
+}
 
 const clickOnContent = (event) => {
   const target = event.target;
@@ -95,18 +102,23 @@ const hoverContent = (event) => {
   }
 };
 
+const isSelectedElement = (element) => {
+  const parent = element.parentElement;
+  const grandparent = parent.parentElement
+  const childOfParentClass = parent.querySelector(".CONTENT_SAVER_SELECTED");
+  const childOfGrandparentClass = grandparent.querySelector(".CONTENT_SAVER_SELECTED");
+  return childOfParentClass || childOfGrandparentClass;
+}
+
 const selectContent = (filtered) => {
   const notHighlighted = filtered.filter((element) => {
-    const parent = element.parentElement;
-    const childOfClass = parent.querySelector(".CONTENT_SAVER_SELECTED");
-    return !childOfClass;
+    return !isSelectedElement(element)
   });
 
   console.log("notHighlighted", notHighlighted);
 
   const highlighted = filtered.filter((element) => {
-    const parent = element.parentElement;
-    return parent.querySelector(".CONTENT_SAVER_SELECTED");
+    return isSelectedElement(element)
   });
 
   console.log("highlighted", highlighted);
@@ -250,15 +262,13 @@ const deactivate = () => {
     element.removeEventListener("click", preventClicks);
     element.parentElement.removeEventListener("click", preventClicks);
   });
-  // document.querySelectorAll(".swiper-slide").forEach((element) => {
-  //   element.removeEventListener("click", preventClicks);
-  //   element.parentElement.removeEventListener("click", preventClicks);
-  // });
   document.body.className = document.body.className.replace(
     " capture-cursor",
     ""
   );
   document.removeEventListener("DOMNodeInserted", nodeAddedToDom);
+  document.removeEventListener("DOMNodeRemoved", nodeRemovedFromDom);
+
   getSrcs();
   clearSelectedCSS();
   clearHoverCSS();
