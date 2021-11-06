@@ -50,12 +50,17 @@ const nodeAddedToDom = (event) => {
 };
 
 const nodeRemovedFromDom = (event) => {
+  console.log("TOAD REMOVED", event);
   const elementToBeRemoved = event.srcElement
   if (elementToBeRemoved) {
     const potentialSelectedOverlay = elementToBeRemoved.querySelector(toSelector(selectedClassName))
-    if (potentialSelectedOverlay) {
-      elementToBeRemoved.parentElement.appendChild(potentialSelectedOverlay)
-      console.log("Node removed. Parent adopted overlay element.")
+    if (potentialSelectedOverlay && elementToBeRemoved.parentElement && elementToBeRemoved.contentSaverHasSaved) {
+      try {
+        elementToBeRemoved.contentSaverHasSaved = true
+        elementToBeRemoved.parentElement.appendChild(elementToBeRemoved)
+      } catch {
+        console.error("Could not highlight parent element.")
+      }
     }
   }
 }
