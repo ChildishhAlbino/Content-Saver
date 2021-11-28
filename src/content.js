@@ -7,6 +7,9 @@ const activeHighlightClassName = "CONTENT_SAVER_HIGHLIGHT"
 const inactiveHighlightClassName = "CONTENT_SAVER_INACTIVE_HIGHLIGHT"
 let highlightClassName = activeHighlightClassName
 
+let cursorX = null
+let cursorY = null
+
 document.addEventListener('keydown', (event) => {
   const key = event.key
   console.log("TOAD KEY", key)
@@ -14,6 +17,16 @@ document.addEventListener('keydown', (event) => {
     softToggle = !softToggle;
     clearHoverCSS()
     highlightClassName = softToggle ? inactiveHighlightClassName : activeHighlightClassName
+  }
+
+  if (key === " ") {
+    event.preventDefault();
+    event.stopPropagation();
+    console.log("KEY", "SPACE")
+    const filtered = getContentFromPoint(cursorX, cursorY)
+    if (filtered != null) {
+      selectContent(filtered)
+    }
   }
 });
 
@@ -82,11 +95,9 @@ const clickOnContent = (event) => {
   }
 };
 
-const hoverContent = (event) => {
-  var x = event.clientX,
-    y = event.clientY;
+const getContentFromPoint = (x, y) => {
   // on mouse down print out the element with the mouse is currently over
-  var elementsFromP = document.elementsFromPoint(x, y);
+  var elementsFromP = document.elementsFromPoint(cursorX, cursorY);
   let button = elementsFromP.find((element) => {
     return element.tagName === "BUTTON";
   });
@@ -117,6 +128,16 @@ const hoverContent = (event) => {
     filtered = firsts.filter((element) => {
       return element != null;
     });
+    return filtered;
+  }
+  return null
+}
+
+const hoverContent = (event) => {
+  cursorX = event.clientX,
+    cursorY = event.clientY;
+  const filtered = getContentFromPoint(cursorX, cursorY)
+  if (filtered != null) {
     clearHoverCSS();
     filtered.forEach((element) => {
       const parent = element.parentElement;
