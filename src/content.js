@@ -10,28 +10,33 @@ let highlightClassName = activeHighlightClassName
 let cursorX = null
 let cursorY = null
 
+let active = false
+
 document.addEventListener('keydown', (event) => {
   const key = event.key
   console.log("TOAD KEY", key)
-  if (key === "`") {
-    softToggle = !softToggle;
-    clearHoverCSS()
-    highlightClassName = softToggle ? inactiveHighlightClassName : activeHighlightClassName
-  }
+  if (active) {
+    if (key === "`") {
+      softToggle = !softToggle;
+      clearHoverCSS()
+      highlightClassName = softToggle ? inactiveHighlightClassName : activeHighlightClassName
+    }
 
-  if (key === " ") {
-    event.preventDefault();
-    event.stopPropagation();
-    console.log("KEY", "SPACE")
-    const filtered = getContentFromPoint(cursorX, cursorY)
-    if (filtered != null) {
-      selectContent(filtered)
+    if (key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log("KEY", "SPACE")
+      const filtered = getContentFromPoint(cursorX, cursorY)
+      if (filtered != null) {
+        selectContent(filtered)
+      }
     }
   }
 });
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request === "ACTIVATE_CONTENT_HIGHLIGHT") {
+    active = true
     document.addEventListener(eventType, clickOnContent);
     document.addEventListener("mousemove", hoverContent);
     nodeAddedToDom(null);
@@ -312,6 +317,7 @@ const preventClicks = (event) => {
 };
 
 const deactivate = () => {
+  active = false
   document.removeEventListener("mousemove", hoverContent);
   document.removeEventListener(eventType, clickOnContent);
   document.querySelectorAll("a").forEach((element) => {
