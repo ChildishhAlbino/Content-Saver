@@ -34,8 +34,8 @@ chrome.runtime.onMessage.addListener(async (request) => {
     let data = new Set(request.data);
     data = Array.from(data);
     console.log("RECEIVED DATA:", data);
-    const responses = await Promise.all(data.map((element) => downloadItem(element)))
-    console.log('BLOBS', responses)
+    const responses = (await Promise.all(data.map((element) => downloadItem(element)))).filter(item => !!item)
+    console.log('BLOBS', responses, responses.map(item => item.blob.size))
     if (responses.length > 0) {
       await zipResponses(responses)
     } else {
@@ -47,21 +47,32 @@ chrome.runtime.onMessage.addListener(async (request) => {
 
 const stripBase64 = (rawB64) => {
   const commaIndex = rawB64.indexOf(',')
-  return rawB64.substring(commaIndex + 1);
+  if (commaIndex !== -1) {
+    return rawB64.substring(commaIndex + 1, 16000000);
+  }
+  return rawB64
 }
 
 const getBase64 = async (blob) => {
   const b64 = await superBase64(blob)
+  console.log("rawB64", b64)
+  if (!b64) {
+    console.log("b64 was wonky")
+  }
   const finalB64 = stripBase64(b64)
+  console.log('B64', finalB64.substring(0, 100), finalB64.substring(finalB64.length - 100))
   return finalB64
 }
 
 const NAMESPACE_URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
 const zipFile = async (response, zip) => {
   if (response != null) {
-    const { blob } = response
-    const finalB64 = await getBase64(blob)
+    const { blob, smallerBlob } = response
+    const b64blob = smallerBlob ? smallerBlob : blob
+    const finalB64 = await getBase64(b64blob)
+    console.log('b64 size', finalB64.length)
     const filenameUUID = uuidv5(finalB64, NAMESPACE_URL)
+    console.log('filename', filenameUUID)
     const extension = mime.extension(blob.type)
     console.log(filenameUUID, extension)
     zip.file(`./${filenameUUID}.${extension}`, blob)
@@ -114,18 +125,51 @@ const addOnBeforeSendHeaders = () => {
 
 const getItemBlob = async (element) => {
   addOnBeforeSendHeaders();
-  return await fetch(element, {
-    method: "GET",
-    credentials: "same-origin",
-  })
-    .then((data) => { return data.blob() })
-    .then((blob) => {
-      return { element, blob };
+  console.log(`Getting blob for element: ${element}`)
+  const dataArrays = []
+  let needsSmallerBlob = false
+  let smallerBlob = null
+  try {
+    const response = await fetch(element, {
+      method: "GET",
+      credentials: "same-origin",
     })
-    .catch((error) => {
-      console.log(error);
-      return null;
-    });
+    const contentType = response.headers.get('content-type');
+    const contentLength = +response.headers.get('content-length');
+    const contentLengthAsMb = contentLength / 1024 / 1024
+    if (contentLengthAsMb > 150) {
+      needsSmallerBlob = true
+    }
+    let contentDownloaded = 0
+    const reader = response.body.getReader()
+    // infinite loop while the body is downloading
+    while (true) {
+      // done is true for the last chunk
+      // value is Uint8Array of the chunk bytes
+      const { done, value } = await reader.read();
+      if (value) {
+        dataArrays.push(value)
+      }
+
+      if (done) {
+        console.log("Finished", element, contentType)
+        break;
+      }
+      contentDownloaded += value.length
+      const currentAsMB = contentDownloaded / 1024 / 1024
+      if (needsSmallerBlob && currentAsMB >= 150) {
+        smallerBlob = new Blob(dataArrays, { type: contentType })
+      }
+      const percent = ((currentAsMB / contentLengthAsMb) * 100).toFixed(2)
+      console.log(`${element} : ${percent} : (${currentAsMB.toFixed(2)} of ${contentLengthAsMb.toFixed(2)})`)
+    }
+
+    return { element, blob: new Blob(dataArrays, { type: contentType }), smallerBlob }
+  } catch (e) {
+    console.log(e);
+    return null;
+  }
+
 };
 
 chrome.commands.onCommand.addListener(function (command) {
@@ -152,4 +196,14 @@ const toggle = (tabs) => {
     }
   });
   activated = !activated;
+};
+
+const appendUInt8Array = (arrays) => {
+  const flatNumberArray = arrays.reduce((acc, curr) => {
+    // console.log(acc, curr)
+    acc.push(...curr);
+    return acc;
+  }, []);
+
+  return new Uint8Array(flatNumberArray);
 };

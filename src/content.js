@@ -187,6 +187,7 @@ const selectContent = (filtered) => {
   // if item is selected already, toggle it off
   // if item is not selected, toggle it on
   addSelectedOverlay(notHighlighted);
+  console.log("Removing items from list", highlighted);
   removeSelectedOverlay(highlighted);
   console.log("SELECTED", selectedElements);
 };
@@ -220,6 +221,7 @@ const addSelectedOverlay = (selected) => {
     if (!childOfClass) {
       let div = document.createElement("span");
       div.className += selectedClassName;
+      div.contentSaverTargets = filtered;
       div.style.height = `${element.offsetHeight}px`;
       div.style.width = `${element.offsetWidth}px`;
       parent.appendChild(div);
@@ -227,6 +229,16 @@ const addSelectedOverlay = (selected) => {
   });
   console.log("SELECTED", selectedElements);
 };
+
+const isMultiplier = item => item.includes('x') || item.includes("X")
+
+const replaceValues = (item, toBeRemoved) => {
+  let perpetual = item
+  toBeRemoved.forEach(value => {
+    perpetual = item.replace(value, "")
+  })
+  return perpetual
+}
 
 const getSrcs = () => {
   console.log("GETTING SRCS");
@@ -241,6 +253,39 @@ const getSrcs = () => {
         let match = element.style.backgroundImage.match(re);
         if (match && match[0]) {
           return match[0];
+        }
+      }
+      console.log(element)
+      if (element.srcset) {
+        const { srcset } = element
+        console.log(element.srcset);
+        const urls = srcset.split(',')
+        const groups = urls.map(item => item.split(" "))
+        console.log(groups);
+        const items = groups.map(([url, size]) => {
+          console.log(url, size);
+          const replacedString = replaceValues(size, ['x', "X", "w", "W"])
+          console.log(replacedString)
+          const numericSize = parseInt(replacedString)
+          return { url, size: numericSize, isMultiplier: isMultiplier(size) }
+        })
+        const itemsHasMultiplier = items.find(item => item.isMultiplier) != null
+        // if multiplier
+        if (itemsHasMultiplier) {
+          const item = items.filter(item => item.isMultiplier).sort().reverse()[0]
+          console.log(item)
+          return item.url
+        }
+        // else width
+        else {
+          const sorted = items.sort((a, b) => {
+            const { size: sizeA } = a
+            const { size: sizeB } = b
+            return sizeA - sizeB
+          }).reverse()
+          const item = sorted[0]
+          console.log(item)
+          return item.url
         }
       }
       if (element.currentSrc) {
