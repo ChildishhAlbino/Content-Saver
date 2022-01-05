@@ -1,4 +1,3 @@
-let selectedElements = [];
 const eventType = "mousedown";
 let softToggle = false;
 
@@ -44,7 +43,7 @@ chrome.runtime.onMessage.addListener((request) => {
       document.body.className += " capture-cursor";
     }
     document.addEventListener("DOMNodeInserted", nodeAddedToDom);
-    document.addEventListener("DOMNodeRemoved", nodeRemovedFromDom);
+    // document.addEventListener("DOMNodeRemoved", nodeRemovedFromDom);
   }
 
   if (request === "DEACTIVATE_CONTENT_HIGHLIGHT") {
@@ -68,11 +67,11 @@ const nodeAddedToDom = (event) => {
 };
 
 const nodeRemovedFromDom = (event) => {
-  console.log("TOAD REMOVED", event);
   const elementToBeRemoved = event.srcElement
   if (elementToBeRemoved && elementToBeRemoved.querySelector) {
     const potentialSelectedOverlay = elementToBeRemoved.querySelector(toSelector(selectedClassName))
-    if (potentialSelectedOverlay && elementToBeRemoved.parentElement && elementToBeRemoved.contentSaverHasSavedFromRemoval) {
+    if (potentialSelectedOverlay && elementToBeRemoved.parentElement) {
+      console.log("TOAD REMOVED", event);
       try {
         elementToBeRemoved.contentSaverHasSavedFromRemoval = true
         elementToBeRemoved.parentElement.appendChild(elementToBeRemoved)
@@ -189,7 +188,6 @@ const selectContent = (filtered) => {
   addSelectedOverlay(notHighlighted);
   console.log("Removing items from list", highlighted);
   removeSelectedOverlay(highlighted);
-  console.log("SELECTED", selectedElements);
 };
 
 const addSelectedOverlay = (selected) => {
@@ -209,12 +207,6 @@ const addSelectedOverlay = (selected) => {
   filtered = firsts.filter((element) => {
     return element != null;
   });
-  filtered.map((item) => {
-    if (!selectedElements.includes(item)) {
-      return item;
-    }
-  });
-  selectedElements = [...selectedElements, ...filtered];
   filtered.forEach((element) => {
     const parent = element.parentElement;
     const childOfClass = parent.querySelector(toSelector(selectedClassName));
@@ -227,7 +219,6 @@ const addSelectedOverlay = (selected) => {
       parent.appendChild(div);
     }
   });
-  console.log("SELECTED", selectedElements);
 };
 
 const isMultiplier = item => item.includes('x') || item.includes("X")
@@ -241,12 +232,14 @@ const replaceValues = (item, toBeRemoved) => {
 }
 
 const getSrcs = () => {
+  const selectedOverlays = Array.from(document.querySelectorAll(toSelector(selectedClassName)))
+  console.log("ALL SELECTED OVERLAYS", selectedOverlays)
   console.log("GETTING SRCS");
-  console.log("SELECTED ELEMENTS", selectedElements);
+  const selectedElements = selectedOverlays.map(element => element.contentSaverTargets).flat()
+  console.log(selectedElements)
   if (selectedElements.length > 0) {
     let srcs = selectedElements.map((element) => {
       if (element.style.backgroundImage) {
-        console.log(element.style.backgroundImage);
         const pattern =
           /https?:\/\/(www.)?[-a-zA-Z0-9@:%._+~#=]{1,256}.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
         let re = new RegExp(pattern);
@@ -255,7 +248,6 @@ const getSrcs = () => {
           return match[0];
         }
       }
-      console.log(element)
       if (element.srcset) {
         const { srcset } = element
         console.log(element.srcset);
@@ -301,7 +293,6 @@ const getSrcs = () => {
     });
 
     console.log("SOURCES", srcs);
-    selectedElements = [];
     if (srcs.length > 0) {
       chrome.runtime.sendMessage({
         message: "DATA",
@@ -324,9 +315,6 @@ const removeSelectedOverlay = (highlighted) => {
     if (selector) {
       selector.parentElement.removeChild(selector);
     }
-    selectedElements = selectedElements.filter((e) => {
-      return !element.contains(e);
-    });
   });
 };
 
@@ -374,7 +362,7 @@ const deactivate = () => {
     ""
   );
   document.removeEventListener("DOMNodeInserted", nodeAddedToDom);
-  document.removeEventListener("DOMNodeRemoved", nodeRemovedFromDom);
+  // document.removeEventListener("DOMNodeRemoved", nodeRemovedFromDom);
 
   getSrcs();
   clearSelectedCSS();
