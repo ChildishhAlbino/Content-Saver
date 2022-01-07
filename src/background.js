@@ -138,6 +138,7 @@ const getItemBlob = async (element) => {
     const contentLength = +response.headers.get('content-length');
     const contentLengthAsMb = contentLength / 1024 / 1024
     if (contentLengthAsMb > 150) {
+      console.log("NEEDS SMALLER BLOB")
       needsSmallerBlob = true
     }
     let contentDownloaded = 0
@@ -157,8 +158,9 @@ const getItemBlob = async (element) => {
       }
       contentDownloaded += value.length
       const currentAsMB = contentDownloaded / 1024 / 1024
-      if (needsSmallerBlob && currentAsMB >= 150) {
+      if (needsSmallerBlob && currentAsMB >= 150 && !smallerBlob) {
         smallerBlob = new Blob(dataArrays, { type: contentType })
+        console.log("SMALLER BLOB", smallerBlob)
       }
       const percent = ((currentAsMB / contentLengthAsMb) * 100).toFixed(2)
       console.log(`${element} : ${percent} : (${currentAsMB.toFixed(2)} of ${contentLengthAsMb.toFixed(2)})`)
