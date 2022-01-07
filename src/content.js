@@ -11,6 +11,8 @@ let cursorY = null
 
 let active = false
 
+let overlays = []
+
 document.addEventListener('keydown', (event) => {
   const key = event.key
   console.log("TOAD KEY", key)
@@ -217,9 +219,24 @@ const addSelectedOverlay = (selected) => {
       div.style.height = `${element.offsetHeight}px`;
       div.style.width = `${element.offsetWidth}px`;
       parent.appendChild(div);
+      overlays.push(div);
+      console.log("overlays", overlays.length);
     }
   });
 };
+
+const removeSelectedOverlay = (highlighted) => {
+  highlighted.forEach((element) => {
+    const parent = element.parentElement;
+    const selector = parent.querySelector(toSelector(selectedClassName));
+    if (selector) {
+      selector.parentElement.removeChild(selector);
+      overlays = overlays.filter(element => element !== selector)
+      console.log("overlays", overlays.length);
+    }
+  });
+};
+
 
 const isMultiplier = item => item.includes('x') || item.includes("X")
 
@@ -232,7 +249,8 @@ const replaceValues = (item, toBeRemoved) => {
 }
 
 const getSrcs = () => {
-  const selectedOverlays = Array.from(document.querySelectorAll(toSelector(selectedClassName)))
+  // const selectedOverlays = Array.from(document.querySelectorAll(toSelector(selectedClassName)))
+  const selectedOverlays = overlays
   console.log("ALL SELECTED OVERLAYS", selectedOverlays)
   console.log("GETTING SRCS");
   const selectedElements = selectedOverlays.map(element => element.contentSaverTargets).flat()
@@ -308,15 +326,6 @@ const preventContextMenu = e => {
   e.stopPropagation()
 }
 
-const removeSelectedOverlay = (highlighted) => {
-  highlighted.forEach((element) => {
-    const parent = element.parentElement;
-    const selector = parent.querySelector(toSelector(selectedClassName));
-    if (selector) {
-      selector.parentElement.removeChild(selector);
-    }
-  });
-};
 
 const clearHoverCSS = () => {
   let overlays = document.querySelectorAll(toSelector(highlightClassName));
