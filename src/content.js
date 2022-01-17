@@ -15,7 +15,6 @@ let overlays = []
 
 document.addEventListener('keydown', (event) => {
   const key = event.key
-  console.log("TOAD KEY", key)
   if (active) {
     if (key === "`") {
       softToggle = !softToggle;
@@ -45,7 +44,6 @@ chrome.runtime.onMessage.addListener((request) => {
       document.body.className += " capture-cursor";
     }
     document.addEventListener("DOMNodeInserted", nodeAddedToDom);
-    // document.addEventListener("DOMNodeRemoved", nodeRemovedFromDom);
   }
 
   if (request === "DEACTIVATE_CONTENT_HIGHLIGHT") {
@@ -68,21 +66,6 @@ const nodeAddedToDom = (event) => {
   });
 };
 
-const nodeRemovedFromDom = (event) => {
-  const elementToBeRemoved = event.srcElement
-  if (elementToBeRemoved && elementToBeRemoved.querySelector) {
-    const potentialSelectedOverlay = elementToBeRemoved.querySelector(toSelector(selectedClassName))
-    if (potentialSelectedOverlay && elementToBeRemoved.parentElement) {
-      console.log("TOAD REMOVED", event);
-      try {
-        elementToBeRemoved.contentSaverHasSavedFromRemoval = true
-        elementToBeRemoved.parentElement.appendChild(elementToBeRemoved)
-      } catch {
-        console.error("Could not highlight parent element.")
-      }
-    }
-  }
-}
 
 const isSpecialClick = (event) => {
   const specialClick = (event.type === 'click' || event.type === eventType) && softToggle
@@ -143,6 +126,7 @@ const hoverContent = (event) => {
   cursorX = event.clientX,
     cursorY = event.clientY;
   const filtered = getContentFromPoint(cursorX, cursorY)
+
   if (filtered != null) {
     clearHoverCSS();
     filtered.forEach((element) => {
@@ -197,10 +181,10 @@ const addSelectedOverlay = (selected) => {
 
   const firsts = [
     filtered.find((element) => {
-      return element.tagName === "VIDEO";
+      return element.tagName === "IMG";
     }),
     filtered.find((element) => {
-      return element.tagName === "IMG";
+      return element.tagName === "VIDEO";
     }),
     filtered.find((element) => {
       return element.tagName !== "IMG" && element.tagName !== "VIDEO";
@@ -209,20 +193,20 @@ const addSelectedOverlay = (selected) => {
   filtered = firsts.filter((element) => {
     return element != null;
   });
-  filtered.forEach((element) => {
-    const parent = element.parentElement;
-    const childOfClass = parent.querySelector(toSelector(selectedClassName));
-    if (!childOfClass) {
-      let div = document.createElement("span");
-      div.className += selectedClassName;
-      div.contentSaverTargets = filtered;
-      div.style.height = `${element.offsetHeight}px`;
-      div.style.width = `${element.offsetWidth}px`;
-      parent.appendChild(div);
-      overlays.push(div);
-      console.log("overlays", overlays.length);
-    }
-  });
+
+
+  const element = filtered[0]
+  if (element) {
+    const parent = element.parentElement
+    let div = document.createElement("span");
+    div.className += selectedClassName;
+    div.contentSaverTargets = filtered;
+    div.style.height = `${element.offsetHeight}px`;
+    div.style.width = `${element.offsetWidth}px`;
+    parent.appendChild(div);
+    overlays.push(div);
+    console.log("overlays", overlays.length);
+  }
 };
 
 const removeSelectedOverlay = (highlighted) => {
@@ -248,9 +232,14 @@ const replaceValues = (item, toBeRemoved) => {
   return perpetual
 }
 
+
+function getSelectedElements() {
+  return selectedOverlays.map(element => element.contentSaverTargets).flat()
+}
+
 const getSrcs = () => {
-  // const selectedOverlays = Array.from(document.querySelectorAll(toSelector(selectedClassName)))
-  const selectedOverlays = overlays
+  const selectedOverlays = [...overlays]
+  overlays = []
   console.log("ALL SELECTED OVERLAYS", selectedOverlays)
   console.log("GETTING SRCS");
   const selectedElements = selectedOverlays.map(element => element.contentSaverTargets).flat()
@@ -371,7 +360,6 @@ const deactivate = () => {
     ""
   );
   document.removeEventListener("DOMNodeInserted", nodeAddedToDom);
-  // document.removeEventListener("DOMNodeRemoved", nodeRemovedFromDom);
 
   getSrcs();
   clearSelectedCSS();
