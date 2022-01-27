@@ -237,6 +237,39 @@ function getSelectedElements() {
   return selectedOverlays.map(element => element.contentSaverTargets).flat()
 }
 
+function getSrcSetURL(element) {
+  const { srcset } = element
+  console.log(element.srcset);
+  const urls = srcset.split(',')
+  const groups = urls.map(item => item.split(" "))
+  console.log(groups);
+  const items = groups.map(([url, size]) => {
+    console.log(url, size);
+    const replacedString = replaceValues(size, ['x', "X", "w", "W"])
+    console.log(replacedString)
+    const numericSize = parseInt(replacedString)
+    return { url, size: numericSize, isMultiplier: isMultiplier(size) }
+  })
+  const itemsHasMultiplier = items.find(item => item.isMultiplier) != null
+  // if multiplier
+  if (itemsHasMultiplier) {
+    const item = items.filter(item => item.isMultiplier).sort().reverse()[0]
+    console.log(item)
+    return item.url
+  }
+  // else width
+  else {
+    const sorted = items.sort((a, b) => {
+      const { size: sizeA } = a
+      const { size: sizeB } = b
+      return sizeA - sizeB
+    }).reverse()
+    const item = sorted[0]
+    console.log(item)
+    return item.url
+  }
+}
+
 const getSrcs = () => {
   const selectedOverlays = [...overlays]
   overlays = []
@@ -252,40 +285,11 @@ const getSrcs = () => {
         let re = new RegExp(pattern);
         let match = element.style.backgroundImage.match(re);
         if (match && match[0]) {
-          return match[0];
+          return [match[0], element.currentSrc, element.src]
         }
       }
       if (element.srcset) {
-        const { srcset } = element
-        console.log(element.srcset);
-        const urls = srcset.split(',')
-        const groups = urls.map(item => item.split(" "))
-        console.log(groups);
-        const items = groups.map(([url, size]) => {
-          console.log(url, size);
-          const replacedString = replaceValues(size, ['x', "X", "w", "W"])
-          console.log(replacedString)
-          const numericSize = parseInt(replacedString)
-          return { url, size: numericSize, isMultiplier: isMultiplier(size) }
-        })
-        const itemsHasMultiplier = items.find(item => item.isMultiplier) != null
-        // if multiplier
-        if (itemsHasMultiplier) {
-          const item = items.filter(item => item.isMultiplier).sort().reverse()[0]
-          console.log(item)
-          return item.url
-        }
-        // else width
-        else {
-          const sorted = items.sort((a, b) => {
-            const { size: sizeA } = a
-            const { size: sizeB } = b
-            return sizeA - sizeB
-          }).reverse()
-          const item = sorted[0]
-          console.log(item)
-          return item.url
-        }
+        return getSrcSetURL(element)
       }
       if (element.currentSrc) {
         return element.currentSrc;
@@ -298,13 +302,13 @@ const getSrcs = () => {
         }
       }
     });
-
+    let flat = srcs.flat()
     console.log("SOURCES", srcs);
     if (srcs.length > 0) {
       chrome.runtime.sendMessage({
         message: "DATA",
         source: `${window.location.protocol}//${window.location.hostname}${window.location.pathname}`,
-        data: srcs,
+        data: flat,
       });
     }
   }
