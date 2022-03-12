@@ -1,9 +1,14 @@
 import superBase64 from 'super-base-64';
 import { v5 as uuidv5 } from 'uuid';
 
+import { createMessage, validateMessage } from './util';
+import { SOURCES } from './sources';
+
 const JSZip = require("jszip");
 const mime = require('mime-types')
 let activated = false;
+
+const backgroundSource = SOURCES.BACKGROUND
 
 const toggleHighlight = () => {
   // gets the current tab and passes it directly into the toggle function
@@ -22,7 +27,11 @@ let parent = chrome.contextMenus.create({
 
 
 chrome.runtime.onMessage.addListener(async (request) => {
-  console.log(request);
+
+  if (validateMessage(request, backgroundSource)) {
+    console.log(request);
+  }
+
   if (request == "DEACTIVATE") {
     activated = false;
     chrome.tabs.query({}, (tabs) => {
@@ -44,9 +53,13 @@ chrome.runtime.onMessage.addListener(async (request) => {
       console.log("List of response was empty.")
     }
     removeOnBeforeSendHeaders();
-    chrome.browserAction.getPopup({}, (string) => {
-      console.log(string);
-    })
+    chrome.runtime.sendMessage(createMessage(
+      backgroundSource,
+      SOURCES.POPUP,
+      {
+        test: "THIS IS A TEST"
+      }
+    ))
   }
 });
 
