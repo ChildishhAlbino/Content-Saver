@@ -97,6 +97,8 @@ const getContentFromPoint = (x, y) => {
           return true;
         case "IMG":
           return true;
+        case "A":
+          return isSpecialClick({ type: eventType });
         case "DIV":
           return !!element.style.backgroundImage;
         default:
@@ -112,6 +114,9 @@ const getContentFromPoint = (x, y) => {
       }),
       filtered.find((element) => {
         return element.tagName != "IMG" && element.tagName != "VIDEO";
+      }),
+      filtered.find((element) => {
+        return element.tagName == "a"
       }),
     ];
     filtered = firsts.filter((element) => {
@@ -279,6 +284,12 @@ const getSrcs = () => {
   console.log(selectedElements)
   if (selectedElements.length > 0) {
     let srcs = selectedElements.map((element) => {
+
+      if (element.href) {
+        console.log(element.href)
+        return element.href
+      }
+
       if (element.style.backgroundImage) {
         const pattern =
           /https?:\/\/(www.)?[-a-zA-Z0-9@:%._+~#=]{1,256}.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;

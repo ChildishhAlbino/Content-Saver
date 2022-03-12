@@ -8,9 +8,14 @@
     "build": "webpack --mode=production --config config/webpack.config.js"
   },
   "devDependencies": {
+    "@babel/core": "^7.17.5",
+    "@babel/preset-env": "^7.16.11",
+    "@babel/preset-react": "^7.16.7",
+    "babel-loader": "^8.2.3",
     "copy-webpack-plugin": "^6.4.1",
     "css-loader": "^4.3.0",
     "file-loader": "^6.2.0",
+    "html-webpack-plugin": "^4.5.2",
     "mini-css-extract-plugin": "^0.10.1",
     "size-plugin": "^2.0.2",
     "webpack": "^4.46.0",
@@ -21,6 +26,8 @@
     "gogh-gradient": "^0.0.1",
     "jszip": "^3.6.0",
     "mime-types": "^2.1.31",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "super-base-64": "^0.0.3",
     "uuid": "^8.3.2"
   }

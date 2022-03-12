@@ -3,7 +3,7 @@
 const SizePlugin = require('size-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const PATHS = require('./paths');
 
 // To re-use webpack configuration across templates,
@@ -15,7 +15,9 @@ const common = {
     // the build folder to output bundles and assets in.
     path: PATHS.build,
     // the filename template for entry chunks
-    filename: '[name].js',
+    filename: (pathData) => {
+      return pathData.chunk.name !== 'popup' ? '[name].js' : '[name]/[name].js';
+    }
   },
   devtool: 'source-map',
   stats: {
@@ -43,6 +45,21 @@ const common = {
           },
         ],
       },
+      {
+        test: (input) => {
+          return input.includes("popup.jsx")
+        },
+        exclude: [
+          /node_modules/,
+          /chrome/
+        ],
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ['@babel/preset-env', '@babel/preset-react']
+          }
+        },
+      }
     ],
   },
   plugins: [

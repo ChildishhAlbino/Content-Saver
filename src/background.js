@@ -5,8 +5,6 @@ const JSZip = require("jszip");
 const mime = require('mime-types')
 let activated = false;
 
-window.blobs = [];
-
 const toggleHighlight = () => {
   // gets the current tab and passes it directly into the toggle function
   chrome.tabs.query({}, (tabs) => {
@@ -16,12 +14,15 @@ const toggleHighlight = () => {
   });
 };
 
+window.batches = [];
 let parent = chrome.contextMenus.create({
   title: "Toggle Content Saver",
   onclick: toggleHighlight,
 });
 
+
 chrome.runtime.onMessage.addListener(async (request) => {
+  console.log(request);
   if (request == "DEACTIVATE") {
     activated = false;
     chrome.tabs.query({}, (tabs) => {
@@ -34,6 +35,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
     let data = new Set(request.data);
     data = Array.from(data);
     console.log("RECEIVED DATA:", data);
+    window.batches.push(data);
     const responses = (await Promise.all(data.map((element) => downloadItem(element)))).filter(item => !!item)
     console.log('BLOBS', responses, responses.map(item => item.blob.size))
     if (responses.length > 0) {
@@ -42,8 +44,21 @@ chrome.runtime.onMessage.addListener(async (request) => {
       console.log("List of response was empty.")
     }
     removeOnBeforeSendHeaders();
+    chrome.browserAction.getPopup({}, (string) => {
+      console.log(string);
+    })
   }
 });
+
+
+chrome.commands.onCommand.addListener(function (command) {
+  if (command == "toggle-highlight-content") {
+    toggleHighlight();
+  }
+});
+
+
+
 
 const stripBase64 = (rawB64) => {
   const commaIndex = rawB64.indexOf(',')
@@ -89,6 +104,7 @@ const zipResponses = async (responses) => {
 
   console.log(content);
   const url = URL.createObjectURL(content)
+  console.log(url)
   chrome.downloads.download({
     url,
   });
@@ -174,11 +190,6 @@ const getItemBlob = async (element) => {
 
 };
 
-chrome.commands.onCommand.addListener(function (command) {
-  if (command == "toggle-highlight-content") {
-    toggleHighlight();
-  }
-});
 
 const beforeSendHeaders = (details) => {
   console.log("DETAILS");

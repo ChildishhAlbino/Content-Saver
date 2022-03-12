@@ -2,7 +2,10 @@
     "name": "Content Saver",
     "version": "1.0",
     "manifest_version": 2,
-    "browser_action": {},
+    "browser_action": {
+        "default_popup": "popup/popup.html",
+        "default_title": "Open the menu."
+    },
     "icons": {
         "32": "icons/icon_32.png",
         "64": "icons/icon_64.png",
