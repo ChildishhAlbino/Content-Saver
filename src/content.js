@@ -97,8 +97,6 @@ const getContentFromPoint = (x, y) => {
           return true;
         case "IMG":
           return true;
-        case "A":
-          return isSpecialClick({ type: eventType });
         case "DIV":
           return !!element.style.backgroundImage;
         default:
@@ -114,10 +112,7 @@ const getContentFromPoint = (x, y) => {
       }),
       filtered.find((element) => {
         return element.tagName != "IMG" && element.tagName != "VIDEO";
-      }),
-      filtered.find((element) => {
-        return element.tagName == "a"
-      }),
+      })
     ];
     filtered = firsts.filter((element) => {
       return element != null;

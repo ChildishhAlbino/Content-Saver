@@ -3,6 +3,9 @@ import { v5 as uuidv5 } from 'uuid';
 
 import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
+import { createDownloadItem, DOWNLOAD_STATUS } from './downloadUtils';
+import { DELETE_DOWNLOAD_ITEM } from "./commands"
+
 
 const JSZip = require("jszip");
 const mime = require('mime-types')
@@ -19,17 +22,38 @@ const toggleHighlight = () => {
   });
 };
 
-window.batches = [];
+const historyClearTime = 5 * 60
+
+window.files = {}
+
+
+let clearHistoryTimer = null
+
 let parent = chrome.contextMenus.create({
   title: "Toggle Content Saver",
   onclick: toggleHighlight,
 });
 
 
+function deleteDownloadItem(req) {
+  const key = req.PAYLOAD.key
+  delete files[key]
+}
+
+const referenceHandlers = {
+  DELETE_DOWNLOAD_ITEM: deleteDownloadItem,
+}
+
 chrome.runtime.onMessage.addListener(async (request) => {
 
   if (validateMessage(request, backgroundSource)) {
     console.log(request);
+    const handler = referenceHandlers[request.REFERENCE];
+    if (handler) {
+      handler(request);
+    } else {
+      console.log("No Handler Registered", request.REFERENCE);
+    }
   }
 
   if (request == "DEACTIVATE") {
@@ -44,33 +68,35 @@ chrome.runtime.onMessage.addListener(async (request) => {
     let data = new Set(request.data);
     data = Array.from(data);
     console.log("RECEIVED DATA:", data);
-    window.batches.push(data);
-    const responses = (await Promise.all(data.map((element) => downloadItem(element)))).filter(item => !!item)
-    console.log('BLOBS', responses, responses.map(item => item.blob.size))
-    if (responses.length > 0) {
-      await zipResponses(responses)
-    } else {
-      console.log("List of response was empty.")
-    }
-    removeOnBeforeSendHeaders();
-    chrome.runtime.sendMessage(createMessage(
-      backgroundSource,
-      SOURCES.POPUP,
-      {
-        test: "THIS IS A TEST"
+    Promise.all(data.map((element) => downloadItem(element))).then(async res => {
+      const responses = res.filter(item => !!item)
+      console.log('BLOBS', responses, responses.map(item => item.blob.size))
+      if (responses.length > 0) {
+        zipResponses(responses).then(() => {
+          if (clearHistoryTimer) {
+            clearTimeout(clearHistoryTimer);
+          }
+          clearHistoryTimer = setTimeout(clearHistory, historyClearTime * 1000)
+        })
+      } else {
+        console.log("List of response was empty.")
       }
-    ))
+      removeOnBeforeSendHeaders();
+    })
+
   }
 });
 
+function clearHistory() {
+  window.files = {}
+  console.log("HISTORY CLEARED")
+}
 
 chrome.commands.onCommand.addListener(function (command) {
   if (command == "toggle-highlight-content") {
     toggleHighlight();
   }
 });
-
-
 
 
 const stripBase64 = (rawB64) => {
@@ -153,6 +179,12 @@ const addOnBeforeSendHeaders = () => {
 };
 
 const getItemBlob = async (element) => {
+
+  const downloadItem = files[element]
+  if (downloadItem && downloadItem.status === DOWNLOAD_STATUS.PENDING) {
+    console.log("Element already downloading", element)
+    return null;
+  }
   addOnBeforeSendHeaders();
   console.log(`Getting blob for element: ${element}`)
   const dataArrays = []
@@ -164,6 +196,7 @@ const getItemBlob = async (element) => {
       credentials: "same-origin",
     })
     const contentType = response.headers.get('content-type');
+    const contentDisposition = response.headers.get('Content-Disposition');
     const contentLength = +response.headers.get('content-length');
     const contentLengthAsMb = contentLength / 1024 / 1024
     if (contentLengthAsMb > 150) {
@@ -171,6 +204,10 @@ const getItemBlob = async (element) => {
       needsSmallerBlob = true
     }
     let contentDownloaded = 0
+    const baseMetadata = {
+      contentType,
+      contentDisposition
+    }
     const reader = response.body.getReader()
     // infinite loop while the body is downloading
     while (true) {
@@ -183,6 +220,15 @@ const getItemBlob = async (element) => {
 
       if (done) {
         console.log("Finished", element, contentType)
+        files[element] = createDownloadItem(
+          contentLengthAsMb,
+          "100",
+          DOWNLOAD_STATUS.SUCCESS,
+          {
+            ...baseMetadata,
+            url: URL.createObjectURL(new Blob(dataArrays, { type: contentType }))
+          }
+        )
         break;
       }
       contentDownloaded += value.length
@@ -192,12 +238,30 @@ const getItemBlob = async (element) => {
         console.log("SMALLER BLOB", smallerBlob)
       }
       const percent = ((currentAsMB / contentLengthAsMb) * 100).toFixed(2)
-      console.log(`${element} : ${percent} : (${currentAsMB.toFixed(2)} of ${contentLengthAsMb.toFixed(2)})`)
+
+      const urlBlob = smallerBlob ? smallerBlob : new Blob(dataArrays, { type: contentType })
+
+      files[element] = createDownloadItem(
+        contentLengthAsMb,
+        percent,
+        DOWNLOAD_STATUS.PENDING,
+        {
+          ...baseMetadata,
+          url: URL.createObjectURL(urlBlob)
+        }
+      )
+
     }
 
     return { element, blob: new Blob(dataArrays, { type: contentType }), smallerBlob }
   } catch (e) {
     console.log(e);
+    files[element] = createDownloadItem(
+      null,
+      null,
+      DOWNLOAD_STATUS.ERROR,
+      { error: e }
+    )
     return null;
   }
 

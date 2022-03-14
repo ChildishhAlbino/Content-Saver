@@ -3,37 +3,90 @@ import { render } from 'react-dom'
 
 import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
-
+import { FaDownload, FaHistory } from 'react-icons/fa'
+import { DOWNLOAD_STATUS } from './downloadUtils';
+import { ToggleThumbnailsButton, DeleteItemButton } from './components/buttons.jsx'
+import { DELETE_DOWNLOAD_ITEM } from "./commands"
 
 const popupSource = SOURCES.POPUP
 class Popup extends React.Component {
 
     constructor(props) {
         super(props)
-        this.state = {
-            batches: this.getBatches()
-        }
 
-        this.downloadAllBatches = this.downloadAllBatches.bind(this)
+        this.downloadAllBatches = this.downloadAllFiles.bind(this)
+        this.setUpTimer = this.setUpTimer.bind(this)
+        this.intervalUpdate = this.intervalUpdate.bind(this)
+        this.toggleThumbnails = this.toggleThumbnails.bind(this)
+        this.toggleHideCompleted = this.toggleHideCompleted.bind(this)
+        this.getFiles = this.getFiles.bind(this)
+        this.getHideThumbnailButton = this.getHideThumbnailButton.bind(this)
+        this.deleteItem = this.deleteItem.bind(this)
+        this.downloadAllFiles = this.downloadAllFiles.bind(this)
+        this.state = {
+            backgroundPage: chrome.extension.getBackgroundPage(),
+            files: [],
+            hideCompleted: true,
+            hideThumbnails: true
+        }
+    }
+
+    getHideThumbnailButton() {
+        return this.state.hideThumbnails ?
+            this.state.hideThumbnailsIcons.disabled : this.state.hideThumbnailsIcons.enabled
     }
 
     sendMessage(message) {
         chrome.runtime.sendMessage(message)
     }
 
-    postReceiveMessage() {
-        const batches = this.getBatches()
-        console.log(batches)
-        this.setState({ batches })
+
+    isImage(contentType) {
+        return contentType.includes("image/")
     }
 
-    downloadAllBatches() {
+    isVideo(contentType) {
+        return contentType.includes("video/")
+    }
+
+    postReceiveMessage() {
+        const files = this.getFiles()
+        console.log(files)
+        this.setState({ files })
+    }
+
+    downloadAllFiles() {
         this.sendMessage(createMessage(
             popupSource,
             SOURCES.BACKGROUND,
-            {},
+            { test: "test" },
             "DOWNLOAD_ALL_BATCHES"
         ))
+    }
+
+    toggleThumbnails() {
+        this.setState({ hideThumbnails: !this.state.hideThumbnails })
+    }
+
+    toggleHideCompleted() {
+        this.setState({ hideCompleted: !this.state.hideCompleted })
+    }
+
+    intervalUpdate() {
+        console.log("Interval")
+        let files = this.getFiles()
+        console.log(JSON.stringify(files, null, 2))
+        if (this.state.hideCompleted) {
+            files = files.filter(([item, details]) => {
+                return details.status !== DOWNLOAD_STATUS.SUCCESS
+            })
+        }
+        this.setState({ files })
+    }
+
+    setUpTimer() {
+        const intervalId = setInterval(this.intervalUpdate, 250)
+        this.setState({ intervalId })
     }
 
     componentDidMount() {
@@ -41,36 +94,84 @@ class Popup extends React.Component {
             const validMessage = validateMessage(request, popupSource)
             if (validMessage) {
                 console.log(request)
-                this.getBatches()
                 this.postReceiveMessage()
             }
         }
         )
+        this.setUpTimer()
         console.log("MOUNTED")
     }
 
-    getBatches() {
-        const bg = chrome.extension.getBackgroundPage();
-        const { batches } = bg
-        console.log(bg)
-        return batches
+    componentWillUnmount() {
+        console.log("UNMOUNTED")
+        clearInterval(this.state.intervalId)
     }
+
+    getFiles() {
+        const bg = this.state.backgroundPage
+        const { files } = bg
+        return Object.entries(files).reverse()
+    }
+
+    deleteItem(key) {
+        this.sendMessage(createMessage(
+            popupSource,
+            SOURCES.BACKGROUND,
+            { key },
+            DELETE_DOWNLOAD_ITEM
+        ))
+    }
+
+    getJSXForElement(elementDetails) {
+        const { meta } = elementDetails
+        if (!this.state.hideThumbnails && meta) {
+            const { url, contentType } = meta
+            const elementIsImg = this.isImage(contentType)
+            const elementIsVideo = this.isVideo(contentType)
+            if (elementIsImg) {
+                return (
+                    <img src={url} />
+                )
+            }
+            if (elementIsVideo) {
+                return (<video controls muted>
+                    <source src={url} />
+                </video>)
+            }
+
+            return null
+        }
+        return null
+    }
+
+
 
     render() {
         console.log(this.state)
-        const batches = this.state.batches
+        const files = this.state.files
         return (
             <div className="content">
                 <div className="button-container">
                     <h1>Content Saver</h1>
-                    <button onClick={this.downloadAllBatches}>Download All</button>
+                    <FaDownload title="" onClick={this.downloadAllFiles} />
+                    <ToggleThumbnailsButton onClick={this.toggleThumbnails} state={this.state.hideThumbnails} />
+                    <FaHistory title="Show/Hide completed items" onClick={this.toggleHideCompleted} />
                 </div>
-                <div className="batch-wrapper">
+                <div className="file-wrapper">
                     {
-                        batches.map((batch, index) => {
-                            return (<div key={index} className="batch-container">
-                                {batch.length} Items!
-                            </div>)
+                        files.map(([element, details], index) => {
+                            return (
+                                <div key={element} className="file-container">
+                                    <div>
+                                        <h1>Item #{index + 1}</h1>
+                                        <i>{details.status} {details.downloaded}%</i>
+                                        <DeleteItemButton onClick={() => {
+                                            this.deleteItem(element);
+                                        }} />
+                                    </div>
+                                    {this.getJSXForElement(details)}
+                                </div>
+                            )
                         })
                     }
                 </div>

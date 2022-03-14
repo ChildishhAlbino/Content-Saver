@@ -47,11 +47,10 @@ const common = {
       },
       {
         test: (input) => {
-          return input.includes("popup.jsx")
+          return input.includes(".jsx")
         },
         exclude: [
-          /node_modules/,
-          /chrome/
+          /node_modules/
         ],
         use: {
           loader: "babel-loader",
