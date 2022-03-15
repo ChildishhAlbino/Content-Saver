@@ -75,7 +75,6 @@ class Popup extends React.Component {
     intervalUpdate() {
         console.log("Interval")
         let files = this.getFiles()
-        console.log(JSON.stringify(files, null, 2))
         if (this.state.hideCompleted) {
             files = files.filter(([item, details]) => {
                 return details.status !== DOWNLOAD_STATUS.SUCCESS
