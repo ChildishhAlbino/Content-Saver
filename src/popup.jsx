@@ -143,8 +143,6 @@ class Popup extends React.Component {
         return null
     }
 
-
-
     render() {
         console.log(this.state)
         const files = this.state.files
