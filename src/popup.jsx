@@ -166,7 +166,7 @@ class Popup extends React.Component {
                                             this.deleteItem(element);
                                         }} />
                                     </div>
-                                    {status !== "ERROR" && this.getJSXForElement(details)}
+                                    {status !== DOWNLOAD_STATUS.ERROR && this.getJSXForElement(details)}
                                 </div>
                             )
                         })
