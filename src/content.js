@@ -188,7 +188,7 @@ const addSelectedOverlay = (selected) => {
     }),
     filtered.find((element) => {
       return element.tagName !== "IMG" && element.tagName !== "VIDEO";
-    }),
+    })
   ];
   filtered = firsts.filter((element) => {
     return element != null;
@@ -313,7 +313,7 @@ const getSrcs = () => {
     if (srcs.length > 0) {
       chrome.runtime.sendMessage({
         message: "DATA",
-        source: `${window.location.protocol}//${window.location.hostname}${window.location.pathname}`,
+        source: `${window.location.protocol}//${window.location.hostname}/`,
         data: flat,
       });
     }

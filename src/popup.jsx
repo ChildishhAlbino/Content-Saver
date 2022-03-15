@@ -6,7 +6,7 @@ import { SOURCES } from './sources';
 import { FaDownload, FaHistory } from 'react-icons/fa'
 import { DOWNLOAD_STATUS } from './downloadUtils';
 import { ToggleThumbnailsButton, DeleteItemButton } from './components/buttons.jsx'
-import { DELETE_DOWNLOAD_ITEM } from "./commands"
+import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD } from "./commands"
 
 const popupSource = SOURCES.POPUP
 class Popup extends React.Component {
@@ -169,7 +169,7 @@ class Popup extends React.Component {
                                             this.deleteItem(element);
                                         }} />
                                     </div>
-                                    {this.getJSXForElement(details)}
+                                    {status !== "ERROR" && this.getJSXForElement(details)}
                                 </div>
                             )
                         })
