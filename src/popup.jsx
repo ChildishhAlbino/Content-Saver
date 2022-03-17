@@ -157,6 +157,7 @@ class Popup extends React.Component {
                 <div className="file-wrapper">
                     {
                         files.map(([element, details], index) => {
+                            const { status } = details
                             return (
                                 <div key={element} className="file-container">
                                     <div>

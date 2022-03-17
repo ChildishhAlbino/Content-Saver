@@ -22,7 +22,7 @@ const toggleHighlight = () => {
 };
 
 const historyClearTime = 5 * 60
-
+const maxBlobSize = 15
 window.files = {}
 
 
@@ -50,10 +50,11 @@ const referenceHandlers = {
 }
 
 const addOnBeforeSendHeaders = (urls, headers) => {
+  console.log(urls);
   console.log("ADDING HEADERS");
   chrome.webRequest.onBeforeSendHeaders.addListener(
     headers,
-    { urls: urls },
+    { urls: urls.filter(it => it != null) },
     ["requestHeaders", "extraHeaders", "blocking"]
   );
 };
@@ -81,14 +82,13 @@ chrome.runtime.onMessage.addListener(async (request) => {
   }
   if (request.message && request.message === "DATA") {
     console.log(request)
-    const source = request.source;
-    const rawData = request.data
-    downloadBatch(source, rawData);
+    const { source, data: rawData, cookie } = request
+    downloadBatch(source, rawData, cookie);
   }
 });
 
-function downloadBatch(source, rawData) {
-  const referrerHeader = generateHeadersForSource(source);
+function downloadBatch(source, rawData, cookie) {
+  const referrerHeader = generateHeadersForSource(source, cookie);
   let data = new Set(rawData);
   data = Array.from(data);
 
@@ -159,15 +159,12 @@ const getItemBlob = async (element) => {
     const response = await fetch(element, {
       method: "GET",
       credentials: "same-origin",
+      redirect: 'follow'
     })
     const contentType = response.headers.get('content-type');
     const contentDisposition = response.headers.get('content-disposition');
     const contentLength = +response.headers.get('content-length');
     const contentLengthAsMb = contentLength / 1024 / 1024
-    if (contentLengthAsMb > 150) {
-      console.log("NEEDS SMALLER BLOB")
-      needsSmallerBlob = true
-    }
     let contentDownloaded = 0
     const baseMetadata = {
       contentType,
@@ -175,7 +172,8 @@ const getItemBlob = async (element) => {
     }
     console.log(response.status)
     if (response.status > 400) {
-
+      const json = await response.json()
+      console.log(json)
       throw Error(response.status)
     }
     const reader = response.body.getReader()
@@ -203,7 +201,7 @@ const getItemBlob = async (element) => {
       }
       contentDownloaded += value.length
       const currentAsMB = contentDownloaded / 1024 / 1024
-      if (needsSmallerBlob && currentAsMB >= 150 && !smallerBlob) {
+      if (currentAsMB >= maxBlobSize && !smallerBlob) {
         smallerBlob = new Blob(dataArrays, { type: contentType })
         console.log("SMALLER BLOB", smallerBlob)
       }
@@ -238,12 +236,22 @@ const getItemBlob = async (element) => {
 };
 
 
-const generateHeadersForSource = (source) => {
+const generateHeadersForSource = (source, cookie) => {
   return (details) => {
-    details.requestHeaders.push({
-      name: "Referer",
-      value: source,
-    });
+    details.requestHeaders.push(
+      {
+        name: "Referer",
+        value: source,
+      }
+    );
+    if (cookie) {
+      details.requestHeaders.push(
+        {
+          name: "cookie",
+          value: cookie,
+        }
+      );
+    }
     console.log(details.requestHeaders)
     return { requestHeaders: details.requestHeaders };
   };
