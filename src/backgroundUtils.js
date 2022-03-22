@@ -21,7 +21,7 @@ async function getBase64(blob) {
     return finalB64
 }
 
-const NAMESPACE_URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
+export const NAMESPACE_URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
 async function zipFile(response, zip) {
     if (response != null) {
         const { blob, smallerBlob } = response

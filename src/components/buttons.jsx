@@ -1,12 +1,12 @@
 import React from 'react';
-import { FaEye, FaEyeSlash, FaDownload, FaHistory, FaTrash } from 'react-icons/fa'
+import { FaEye, FaEyeSlash, FaDownload, FaTrash, FaTimesCircle } from 'react-icons/fa'
 
 const hideThumbnailsButton = (onClick) => {
-    return <FaEyeSlash title="Disable item thumbnails" style={{ 'fontSize': "25px" }} onClick={onClick} />
+    return <FaEyeSlash className="icon" title="Disable item thumbnails" onClick={onClick} />
 }
 
 const showThumbnailsButton = (onClick) => {
-    return <FaEye title="Enable item thumbnails" style={{ 'fontSize': "25px" }} onClick={onClick} />
+    return <FaEye className="icon" title="Enable item thumbnails" onClick={onClick} />
 }
 
 export const ToggleThumbnailsButton = ({ onClick, state }) => {
@@ -14,8 +14,15 @@ export const ToggleThumbnailsButton = ({ onClick, state }) => {
 }
 
 export const DeleteItemButton = ({ onClick }) => {
-    return <FaTrash title="Delete item" style={{ 'fontSize': "25px" }} onClick={onClick} />
+    return <FaTrash className="icon" title="Delete item." onClick={onClick} />
 }
 
+export const ClearPageButton = ({ onClick }) => {
+    return <FaTimesCircle className="icon" title="Delete all items on page." onClick={onClick} />
+}
+
+export const DownloadAllButton = ({ onClick }) => {
+    return <FaDownload className="icon" title="Download All Items" onClick={onClick} />
+}
 
 // export const ClearAllButton

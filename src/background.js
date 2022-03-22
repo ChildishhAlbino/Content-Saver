@@ -5,7 +5,7 @@ import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
 import { createDownloadItem, DOWNLOAD_STATUS } from './downloadUtils';
 import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD } from "./commands"
-import { zipResponses } from './backgroundUtils'
+import { zipResponses, NAMESPACE_URL } from './backgroundUtils'
 
 
 let activated = false;
@@ -24,7 +24,6 @@ const toggleHighlight = () => {
 const historyClearTime = 5 * 60
 const maxBlobSize = 15
 window.files = {}
-
 
 let clearHistoryTimer = null
 
@@ -163,12 +162,14 @@ const getItemBlob = async (element) => {
     })
     const contentType = response.headers.get('content-type');
     const contentDisposition = response.headers.get('content-disposition');
+    const fileName = contentDisposition ? contentDisposition : uuidv5(element, NAMESPACE_URL)
     const contentLength = +response.headers.get('content-length');
     const contentLengthAsMb = contentLength / 1024 / 1024
     let contentDownloaded = 0
     const baseMetadata = {
       contentType,
-      contentDisposition
+      contentDisposition,
+      fileName
     }
     console.log(response.status)
     if (response.status > 400) {

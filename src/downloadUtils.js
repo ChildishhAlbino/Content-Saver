@@ -14,6 +14,6 @@ export function createDownloadItem(
         totalSize,
         downloaded,
         status,
-        meta
+        metadata: meta
     }
 }

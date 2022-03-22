@@ -15,9 +15,7 @@ const common = {
     // the build folder to output bundles and assets in.
     path: PATHS.build,
     // the filename template for entry chunks
-    filename: (pathData) => {
-      return pathData.chunk.name !== 'popup' ? '[name].js' : '[name]/[name].js';
-    }
+    filename: "[name].js"
   },
   devtool: 'source-map',
   stats: {
@@ -29,8 +27,8 @@ const common = {
     rules: [
       // Help webpack in understanding CSS files imported in .js files
       {
-        test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader'],
+        test: /\.css|.scss$/,
+        use: [MiniCssExtractPlugin.loader, 'css-loader', 'sass-loader'],
       },
       // Check for images imported in .js files and
       {
@@ -58,7 +56,7 @@ const common = {
             presets: ['@babel/preset-env', '@babel/preset-react']
           }
         },
-      }
+      },
     ],
   },
   plugins: [

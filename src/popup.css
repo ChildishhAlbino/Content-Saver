@@ -1,0 +1,106 @@
+html {
+  min-width: 500px;
+  min-height: 750px;
+  background-color: var(--content-bg-colour);
+  color: #f4f7f5;
+  box-sizing: border-box;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  margin: 0 auto;
+  --bg-colour: #1b1b1b;
+  --content-bg-colour: #303030;
+  --accent-colour: #a0a5ff;
+  --highlight-colour: #ff668e;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.content {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-rows: 1fr 9fr;
+  align-items: start;
+  justify-items: center;
+}
+
+.content > button {
+  max-width: 250px;
+}
+
+.file-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.button-container {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  background-color: #1f1f1f;
+}
+
+.header-wrapper {
+  width: 100%;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 999;
+}
+
+.page-selector-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  justify-items: center;
+  background-color: var(--bg-colour);
+}
+
+.page-selector {
+  width: 100%;
+  text-align: center;
+}
+
+.page-selector:hover {
+  color: var(--highlight-colour);
+  border-bottom: 1px solid var(--highlight-colour);
+}
+
+.selected {
+  background-color: var(--bg-colour);
+  border-bottom: 1px solid var(--accent-colour);
+  color: var(--accent-colour);
+}
+
+a {
+  color: #f4f7f5;
+  text-decoration: none;
+}
+
+.icon {
+  font-size: 25px;
+}
+
+.icon:hover {
+  color: var(--highlight-colour);
+}
+
+.button-container > svg {
+  font-size: 25px;
+}

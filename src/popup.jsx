@@ -5,8 +5,11 @@ import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
 import { FaDownload, FaHistory } from 'react-icons/fa'
 import { DOWNLOAD_STATUS } from './downloadUtils';
-import { ToggleThumbnailsButton, DeleteItemButton } from './components/buttons.jsx'
+import { ToggleThumbnailsButton, DeleteItemButton, ClearPageButton, DownloadAllButton } from './components/buttons.jsx'
+import { DownloadItem } from './components/downloadItem/downloadItem.jsx';
 import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD } from "./commands"
+
+import './popup.css'
 
 const popupSource = SOURCES.POPUP
 class Popup extends React.Component {
@@ -18,15 +21,18 @@ class Popup extends React.Component {
         this.setUpTimer = this.setUpTimer.bind(this)
         this.intervalUpdate = this.intervalUpdate.bind(this)
         this.toggleThumbnails = this.toggleThumbnails.bind(this)
-        this.toggleHideCompleted = this.toggleHideCompleted.bind(this)
         this.getFiles = this.getFiles.bind(this)
         this.getHideThumbnailButton = this.getHideThumbnailButton.bind(this)
         this.deleteItem = this.deleteItem.bind(this)
         this.downloadAllFiles = this.downloadAllFiles.bind(this)
+        this.pageSelector = this.pageSelector.bind(this)
+        this.shouldShowFile = this.shouldShowFile.bind(this)
+        this.clearPage = this.clearPage.bind(this)
         this.state = {
+            selectedPage: "Downloading",
+            pages: ["Downloading", "Error", "All"],
             backgroundPage: chrome.extension.getBackgroundPage(),
             files: [],
-            hideCompleted: true,
             hideThumbnails: true
         }
     }
@@ -38,15 +44,6 @@ class Popup extends React.Component {
 
     sendMessage(message) {
         chrome.runtime.sendMessage(message)
-    }
-
-
-    isImage(contentType) {
-        return contentType.includes("image/")
-    }
-
-    isVideo(contentType) {
-        return contentType.includes("video/")
     }
 
     postReceiveMessage() {
@@ -68,18 +65,9 @@ class Popup extends React.Component {
         this.setState({ hideThumbnails: !this.state.hideThumbnails })
     }
 
-    toggleHideCompleted() {
-        this.setState({ hideCompleted: !this.state.hideCompleted })
-    }
-
     intervalUpdate() {
         console.log("Interval")
         let files = this.getFiles()
-        if (this.state.hideCompleted) {
-            files = files.filter(([item, details]) => {
-                return details.status !== DOWNLOAD_STATUS.SUCCESS
-            })
-        }
         this.setState({ files })
     }
 
@@ -121,55 +109,85 @@ class Popup extends React.Component {
         ))
     }
 
-    getJSXForElement(elementDetails) {
-        const { meta } = elementDetails
-        if (!this.state.hideThumbnails && meta) {
-            const { url, contentType } = meta
-            const elementIsImg = this.isImage(contentType)
-            const elementIsVideo = this.isVideo(contentType)
-            if (elementIsImg) {
-                return (
-                    <img src={url} />
-                )
-            }
-            if (elementIsVideo) {
-                return (<video controls muted>
-                    <source src={url} />
-                </video>)
-            }
-
-            return null
+    pageSelector(text) {
+        let className = 'page-selector'
+        if (this.state.selectedPage === text) {
+            className += ' selected'
         }
-        return null
+        const onClick = () => {
+            this.setState({ selectedPage: text })
+        }
+        return (
+            <div onClick={onClick} key={text} className={className}>
+                <h2>{text}</h2>
+            </div>
+        )
+    }
+
+    shouldShowFile(status) {
+        const { selectedPage } = this.state
+        let shouldShow = false
+        switch (selectedPage) {
+            case "Downloading":
+                shouldShow = status === DOWNLOAD_STATUS.PENDING
+                break;
+            case "Error":
+                shouldShow = status === DOWNLOAD_STATUS.ERROR
+                break;
+            case "All":
+                shouldShow = true
+                break;
+            default:
+                throw Error("Oops... How did I get here?")
+        }
+        return shouldShow
+    }
+
+    clearPage() {
+        const { files } = this.state
+        const filesToBeDeleted = files.filter(([_, details]) => {
+            const { status } = details
+            return this.shouldShowFile(status)
+        })
+        filesToBeDeleted.forEach(([element]) => {
+            this.deleteItem(element)
+        })
     }
 
     render() {
         console.log(this.state)
-        const files = this.state.files
+        const { pages, files } = this.state
         return (
             <div className="content">
-                <div className="button-container">
-                    <h1>Content Saver</h1>
-                    <FaDownload title="" onClick={this.downloadAllFiles} />
-                    <ToggleThumbnailsButton onClick={this.toggleThumbnails} state={this.state.hideThumbnails} />
-                    <FaHistory title="Show/Hide completed items" onClick={this.toggleHideCompleted} />
+                <div className="header-wrapper">
+                    <div className="button-container">
+                        <h1>Content Saver</h1>
+                        <DownloadAllButton />
+                        <ToggleThumbnailsButton onClick={this.toggleThumbnails} state={this.state.hideThumbnails} />
+                        <ClearPageButton onClick={this.clearPage} />
+                    </div>
+                    <div className="page-selector-wrapper">
+                        {pages.map(item => {
+                            return this.pageSelector(item)
+                        })}
+                    </div>
                 </div>
                 <div className="file-wrapper">
                     {
                         files.map(([element, details], index) => {
                             const { status } = details
-                            return (
-                                <div key={element} className="file-container">
-                                    <div>
-                                        <h1>Item #{index + 1}</h1>
-                                        <i>{details.status} {details.downloaded}%</i>
-                                        <DeleteItemButton onClick={() => {
-                                            this.deleteItem(element);
-                                        }} />
-                                    </div>
-                                    {status !== DOWNLOAD_STATUS.ERROR && this.getJSXForElement(details)}
-                                </div>
-                            )
+                            const shouldShowFile = this.shouldShowFile(status)
+                            if (shouldShowFile) {
+                                return (
+                                    <DownloadItem
+                                        key={element}
+                                        deleteItem={this.deleteItem}
+                                        details={details}
+                                        element={element}
+                                        hideThumbnails={this.state.hideThumbnails}
+                                    />
+                                )
+                            }
                         })
                     }
                 </div>
