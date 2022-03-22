@@ -54,7 +54,7 @@ body {
   display: flex;
   justify-content: space-evenly;
   align-items: center;
-  background-color: #1f1f1f;
+  background-color: var(--bg-colour);
 }
 
 .header-wrapper {

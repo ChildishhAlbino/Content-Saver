@@ -7,7 +7,7 @@ import { FaDownload, FaHistory } from 'react-icons/fa'
 import { DOWNLOAD_STATUS } from './downloadUtils';
 import { ToggleThumbnailsButton, DeleteItemButton, ClearPageButton, DownloadAllButton } from './components/buttons.jsx'
 import { DownloadItem } from './components/downloadItem/downloadItem.jsx';
-import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD } from "./commands"
+import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL } from "./commands"
 
 import './popup.css'
 
@@ -57,7 +57,7 @@ class Popup extends React.Component {
             popupSource,
             SOURCES.BACKGROUND,
             { test: "test" },
-            "DOWNLOAD_ALL_BATCHES"
+            DOWNLOAD_ALL
         ))
     }
 
@@ -162,7 +162,7 @@ class Popup extends React.Component {
                 <div className="header-wrapper">
                     <div className="button-container">
                         <h1>Content Saver</h1>
-                        <DownloadAllButton />
+                        <DownloadAllButton onClick={this.downloadAllFiles} />
                         <ToggleThumbnailsButton onClick={this.toggleThumbnails} state={this.state.hideThumbnails} />
                         <ClearPageButton onClick={this.clearPage} />
                     </div>

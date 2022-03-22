@@ -4,7 +4,7 @@ import { v5 as uuidv5 } from 'uuid';
 import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
 import { createDownloadItem, DOWNLOAD_STATUS } from './downloadUtils';
-import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD } from "./commands"
+import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL } from "./commands"
 import { zipResponses, NAMESPACE_URL } from './backgroundUtils'
 
 
@@ -43,9 +43,15 @@ function adHocDownload(req) {
   downloadBatch(source, data)
 }
 
+function downloadAll(req) {
+  // const files = Object.keys(window.files)
+  // downloadBatch()
+}
+
 const referenceHandlers = {
   [DELETE_DOWNLOAD_ITEM]: deleteDownloadItem,
-  [ADHOC_DOWNLOAD]: adHocDownload
+  [ADHOC_DOWNLOAD]: adHocDownload,
+  [DOWNLOAD_ALL]: adHocDownload,
 }
 
 const addOnBeforeSendHeaders = (urls, headers) => {
@@ -92,9 +98,12 @@ function downloadBatch(source, rawData, cookie) {
   data = Array.from(data);
 
   addOnBeforeSendHeaders(data, referrerHeader);
-
+  const parentMetaData = {
+    source,
+    cookie
+  };
   console.log("RECEIVED DATA:", data);
-  Promise.all(data.map((element) => downloadItem(element))).then(async (res) => {
+  Promise.all(data.map((element) => downloadItem(element, parentMetaData))).then(async (res) => {
     const responses = res.filter(item => !!item);
     console.log('BLOBS', responses, responses.map(item => item.blob.size));
     if (responses.length > 0) {
@@ -122,12 +131,12 @@ chrome.commands.onCommand.addListener(function (command) {
   }
 });
 
-const downloadItem = async (element) => {
+const downloadItem = async (element, parentMetaData) => {
   if (!element) {
     return null;
   }
   else if (!element.includes("blob:")) {
-    return await getItemBlob(element);
+    return await getItemBlob(element, parentMetaData);
   } else {
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
       const tab = tabs[0];
@@ -143,7 +152,7 @@ const removeOnBeforeSendHeaders = (headers) => {
 };
 
 
-const getItemBlob = async (element) => {
+const getItemBlob = async (element, parentMetaData) => {
 
   const downloadItem = files[element]
   if (downloadItem && downloadItem.status === DOWNLOAD_STATUS.PENDING) {
@@ -167,6 +176,7 @@ const getItemBlob = async (element) => {
     const contentLengthAsMb = contentLength / 1024 / 1024
     let contentDownloaded = 0
     const baseMetadata = {
+      ...parentMetaData,
       contentType,
       contentDisposition,
       fileName

@@ -1,14 +1,30 @@
 .file-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.file-container-content {
   max-width: 300px;
   word-break: break-all;
   background-color: var(--content-bg-colour);
   min-width: 100%;
   min-height: 100px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  padding: 0.5rem;
+  pre {
+    max-width: 100px;
+  }
+}
+
+.file-container-controls {
+  background-color: var(--bg-colour);
+  padding: 0.5rem;
+  grid-column: 1 / -1;
+}
+
+.file-container-thumbnail {
   img,
   video {
     max-width: 200px;
-    justify-self: end;
   }
+  justify-self: end;
 }

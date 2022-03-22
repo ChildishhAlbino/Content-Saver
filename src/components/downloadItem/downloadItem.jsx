@@ -37,18 +37,22 @@ function getJSXForElement(elementDetails, hideThumbnails) {
 export const DownloadItem = ({ element, details, hideThumbnails, deleteItem }) => {
     const { status, metadata } = details
     return (
-        <div key={element} className="file-container">
-            <div>
-                <h3>{metadata.fileName}</h3>
-                <i>{details.status} {details.downloaded}%</i>
+        <div className="file-container">
+            <div key={element} className="file-container-content">
+                <div>
+                    <h3>{metadata.fileName}</h3>
+                    <input type="range" disabled={true} value={details.downloaded} id="downloadPercent" />
+                    <label for="downloadPercent">{details.downloaded}%</label>
+                </div>
+            </div>
+            <div className="file-container-thumbnail">
+                {status !== DOWNLOAD_STATUS.ERROR && getJSXForElement(details, hideThumbnails)}
+            </div>
+            <div className="file-container-controls">
                 <DeleteItemButton onClick={() => {
                     deleteItem(element);
                 }} />
-                <div>
-
-                </div>
             </div>
-            {status !== DOWNLOAD_STATUS.ERROR && getJSXForElement(details, hideThumbnails)}
         </div>
     )
 }
