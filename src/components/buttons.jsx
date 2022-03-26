@@ -21,8 +21,8 @@ export const ClearPageButton = ({ onClick }) => {
     return <FaTimesCircle className="icon" title="Delete all items on page." onClick={onClick} />
 }
 
-export const DownloadAllButton = ({ onClick }) => {
-    return <FaDownload className="icon" title="Download All Items" onClick={onClick} />
+export const DownloadAllButton = ({ onClick, title = "Download All Items" }) => {
+    return <FaDownload className="icon" title={title} onClick={onClick} />
 }
 
 // export const ClearAllButton

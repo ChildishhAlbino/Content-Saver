@@ -1,4 +1,3 @@
-import superBase64 from 'super-base-64';
 import { v5 as uuidv5 } from 'uuid';
 
 import { createMessage, validateMessage } from './util';
@@ -6,10 +5,15 @@ import { SOURCES } from './sources';
 import { createDownloadItem, DOWNLOAD_STATUS } from './downloadUtils';
 import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL } from "./commands"
 import { zipResponses, NAMESPACE_URL } from './backgroundUtils'
-
+import {
+  writeDownloadItem,
+  deleteDownload,
+  clearAllDownloads,
+  getDownloadItem,
+  getHydratedDownloads
+} from './persistence/downloads'
 
 let activated = false;
-
 const backgroundSource = SOURCES.BACKGROUND
 
 const toggleHighlight = () => {
@@ -22,12 +26,10 @@ const toggleHighlight = () => {
 };
 
 const historyClearTime = 5 * 60
-const maxBlobSize = 15
-window.files = {}
+const maxBlobSize = 2
 
 let clearHistoryTimer = null
-
-let parent = chrome.contextMenus.create({
+chrome.contextMenus.create({
   title: "Toggle Content Saver",
   onclick: toggleHighlight,
 });
@@ -35,23 +37,55 @@ let parent = chrome.contextMenus.create({
 
 function deleteDownloadItem(req) {
   const key = req.PAYLOAD.key
-  delete files[key]
+  deleteDownload(key)
 }
 
 function adHocDownload(req) {
-  const { PAYLOAD: { data, source } } = req;
-  downloadBatch(source, data)
+  const { PAYLOAD: { element: url } } = req;
+  const element = getDownloadItem(url)
+  const { metadata: { source, url: thumbnailUrl, cookie } } = element
+  if (thumbnailUrl) {
+    downloadBatch(null, [thumbnailUrl], null)
+    return
+  }
+  downloadBatch(source, [url], cookie)
 }
 
 function downloadAll(req) {
-  // const files = Object.keys(window.files)
-  // downloadBatch()
+  const batches = {
+    ["internal"]: [],
+  }
+  Object.entries(getHydratedDownloads()).forEach(([url, data]) => {
+    const { source, cookie, url: thumbnailUrl } = data.metadata
+    if (thumbnailUrl) {
+      batches["internal"].push(thumbnailUrl)
+      return;
+    }
+
+    const key = [source, cookie]
+    const existingBatch = batches[key]
+    if (existingBatch) {
+      existingBatch.push(url)
+      batches[key] = existingBatch
+    } else {
+      batches[key] = [url]
+    }
+  })
+  Object.entries(batches).forEach(([key, items]) => {
+    if (key === "internal") {
+      downloadBatch(null, items, null)
+    } else {
+      const [source, cookie] = key
+      downloadBatch(source, items, cookie)
+    }
+  })
+
 }
 
 const referenceHandlers = {
   [DELETE_DOWNLOAD_ITEM]: deleteDownloadItem,
   [ADHOC_DOWNLOAD]: adHocDownload,
-  [DOWNLOAD_ALL]: adHocDownload,
+  [DOWNLOAD_ALL]: downloadAll,
 }
 
 const addOnBeforeSendHeaders = (urls, headers) => {
@@ -59,7 +93,7 @@ const addOnBeforeSendHeaders = (urls, headers) => {
   console.log("ADDING HEADERS");
   chrome.webRequest.onBeforeSendHeaders.addListener(
     headers,
-    { urls: urls.filter(it => it != null) },
+    { urls: urls.filter(it => it != null && !it.includes("blob:")) },
     ["requestHeaders", "extraHeaders", "blocking"]
   );
 };
@@ -93,16 +127,28 @@ chrome.runtime.onMessage.addListener(async (request) => {
 });
 
 function downloadBatch(source, rawData, cookie) {
-  const referrerHeader = generateHeadersForSource(source, cookie);
+  let parentMetaData = {}
+  let referrerHeader = null
   let data = new Set(rawData);
   data = Array.from(data);
-
-  addOnBeforeSendHeaders(data, referrerHeader);
-  const parentMetaData = {
-    source,
-    cookie
-  };
+  if (source != null) {
+    referrerHeader = generateHeadersForSource(source, cookie);
+    addOnBeforeSendHeaders(data, referrerHeader);
+    parentMetaData = {
+      source,
+      cookie
+    };
+  }
   console.log("RECEIVED DATA:", data);
+  data.forEach(item => {
+    const status = createDownloadItem(
+      null,
+      null,
+      DOWNLOAD_STATUS.PENDING,
+      null
+    )
+    writeDownloadItem(item, status);
+  })
   Promise.all(data.map((element) => downloadItem(element, parentMetaData))).then(async (res) => {
     const responses = res.filter(item => !!item);
     console.log('BLOBS', responses, responses.map(item => item.blob.size));
@@ -116,12 +162,14 @@ function downloadBatch(source, rawData, cookie) {
     } else {
       console.log("List of response was empty.");
     }
-    removeOnBeforeSendHeaders(referrerHeader);
+    if (referrerHeader) {
+      removeOnBeforeSendHeaders(referrerHeader);
+    }
   });
 }
 
 function clearHistory() {
-  window.files = {}
+  clearAllDownloads()
   console.log("HISTORY CLEARED")
 }
 
@@ -134,14 +182,21 @@ chrome.commands.onCommand.addListener(function (command) {
 const downloadItem = async (element, parentMetaData) => {
   if (!element) {
     return null;
-  }
-  else if (!element.includes("blob:")) {
+  } else if (!element.includes("blob:")) {
     return await getItemBlob(element, parentMetaData);
   } else {
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-      const tab = tabs[0];
-      chrome.tabs.sendMessage(tab.id, "ERROR_DOWNLOAD_BLOB");
-    });
+    if (element.includes("chrome-extension:")) {
+      return await getItemBlob(element, parentMetaData, true);
+    }
+
+    const status = createDownloadItem(
+      null,
+      null,
+      DOWNLOAD_STATUS.ERROR,
+      { error: "Cannot download blob urls from other domains." }
+    )
+    writeDownloadItem(element, status);
+
     return null
   }
 };
@@ -152,17 +207,16 @@ const removeOnBeforeSendHeaders = (headers) => {
 };
 
 
-const getItemBlob = async (element, parentMetaData) => {
-
-  const downloadItem = files[element]
-  if (downloadItem && downloadItem.status === DOWNLOAD_STATUS.PENDING) {
+const getItemBlob = async (element, parentMetaData, isReattempt) => {
+  const downloadItem = getDownloadItem(element)
+  if (downloadItem && downloadItem.status === DOWNLOAD_STATUS.PENDING && downloadItem.downloaded != null) {
     console.log("Element already downloading", element)
     return null;
   }
   console.log(`Getting blob for element: ${element}`)
   const dataArrays = []
-  let needsSmallerBlob = false
   let smallerBlob = null
+  let smallerBlobUrl = null
   try {
     const response = await fetch(element, {
       method: "GET",
@@ -199,48 +253,59 @@ const getItemBlob = async (element, parentMetaData) => {
 
       if (done) {
         console.log("Finished", element, contentType)
-        files[element] = createDownloadItem(
-          contentLengthAsMb,
-          "100",
-          DOWNLOAD_STATUS.SUCCESS,
-          {
-            ...baseMetadata,
-            url: URL.createObjectURL(new Blob(dataArrays, { type: contentType }))
-          }
-        )
+        if (!isReattempt) {
+          const statusItem = createDownloadItem(
+            contentLengthAsMb,
+            "100",
+            DOWNLOAD_STATUS.SUCCESS,
+            {
+              ...baseMetadata,
+              url: URL.createObjectURL(new Blob(dataArrays, { type: contentType })),
+              previewUrl: smallerBlobUrl
+            }
+          )
+          writeDownloadItem(element, statusItem)
+        }
         break;
       }
       contentDownloaded += value.length
       const currentAsMB = contentDownloaded / 1024 / 1024
       if (currentAsMB >= maxBlobSize && !smallerBlob) {
         smallerBlob = new Blob(dataArrays, { type: contentType })
+        smallerBlobUrl = URL.createObjectURL(smallerBlob)
         console.log("SMALLER BLOB", smallerBlob)
       }
       const percent = ((currentAsMB / contentLengthAsMb) * 100).toFixed(2)
 
       const urlBlob = smallerBlob ? smallerBlob : new Blob(dataArrays, { type: contentType })
 
-      files[element] = createDownloadItem(
-        contentLengthAsMb,
-        percent,
-        DOWNLOAD_STATUS.PENDING,
-        {
-          ...baseMetadata,
-          url: URL.createObjectURL(urlBlob)
-        }
-      )
+      if (!isReattempt) {
+        const statusItem = createDownloadItem(
+          contentLengthAsMb,
+          percent,
+          DOWNLOAD_STATUS.PENDING,
+          {
+            ...baseMetadata,
+            url: smallerBlobUrl || URL.createObjectURL(urlBlob)
+          }
+        )
+        writeDownloadItem(element, statusItem)
+      }
 
     }
 
     return { element, blob: new Blob(dataArrays, { type: contentType }), smallerBlob }
   } catch (e) {
     console.log(e);
-    files[element] = createDownloadItem(
-      null,
-      null,
-      DOWNLOAD_STATUS.ERROR,
-      { error: e }
-    )
+    if (!isReattempt) {
+      const statusItem = createDownloadItem(
+        null,
+        null,
+        DOWNLOAD_STATUS.ERROR,
+        { error: e }
+      )
+      writeDownloadItem(element, statusItem)
+    }
     return null;
   }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DOWNLOAD_STATUS } from '../../downloadUtils';
-import { DeleteItemButton } from '../buttons.jsx'
+import { DeleteItemButton, DownloadAllButton } from '../buttons.jsx'
 import './downloadItem.scss'
 
 
@@ -14,17 +14,19 @@ function isVideo(contentType) {
 
 function getJSXForElement(elementDetails, hideThumbnails) {
     const { metadata } = elementDetails
-    if (!hideThumbnails && metadata) {
-        const { url, contentType } = metadata
+    if (metadata) {
+        const { url: fullUrl, contentType, previewUrl } = metadata
         const elementIsImg = isImage(contentType)
         const elementIsVideo = isVideo(contentType)
+        const className = hideThumbnails ? "hide-thumbnail" : ""
+        const url = previewUrl || fullUrl
         if (elementIsImg) {
             return (
-                <img src={url} />
+                <img className={className} src={url} />
             )
         }
         if (elementIsVideo) {
-            return (<video controls muted>
+            return (<video className={className} controls muted>
                 <source src={url} />
             </video>)
         }
@@ -34,21 +36,29 @@ function getJSXForElement(elementDetails, hideThumbnails) {
     return null
 }
 
-export const DownloadItem = ({ element, details, hideThumbnails, deleteItem }) => {
-    const { status, metadata } = details
+export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, deleteItem }) => {
+    const { status, metadata, downloaded } = details
     return (
-        <div className="file-container">
-            <div key={element} className="file-container-content">
+        <div key={element} className="file-container">
+            <div className="file-container-content">
                 <div>
-                    <h3>{metadata.fileName}</h3>
-                    <input type="range" disabled={true} value={details.downloaded} id="downloadPercent" />
-                    <label for="downloadPercent">{details.downloaded}%</label>
+                    <h3>{metadata?.fileName}</h3>
+                    {downloaded && <>
+                        <input type="range" disabled={true} value={downloaded} id="downloadPercent" />
+                        <label htmlFor="downloadPercent">{downloaded}%</label>
+                    </>}
+                    <h4>{status}</h4>
+                    {metadata?.error && <p>{metadata.error}</p>}
                 </div>
             </div>
             <div className="file-container-thumbnail">
                 {status !== DOWNLOAD_STATUS.ERROR && getJSXForElement(details, hideThumbnails)}
             </div>
+
             <div className="file-container-controls">
+                <DownloadAllButton title="Download item." onClick={() => {
+                    downloadItem(element)
+                }} />
                 <DeleteItemButton onClick={() => {
                     deleteItem(element);
                 }} />

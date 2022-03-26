@@ -8,7 +8,9 @@ import { DOWNLOAD_STATUS } from './downloadUtils';
 import { ToggleThumbnailsButton, DeleteItemButton, ClearPageButton, DownloadAllButton } from './components/buttons.jsx'
 import { DownloadItem } from './components/downloadItem/downloadItem.jsx';
 import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL } from "./commands"
-
+import {
+    getHydratedDownloads
+} from './persistence/downloads'
 import './popup.css'
 
 const popupSource = SOURCES.POPUP
@@ -17,9 +19,8 @@ class Popup extends React.Component {
     constructor(props) {
         super(props)
 
-        this.downloadAllBatches = this.downloadAllFiles.bind(this)
-        this.setUpTimer = this.setUpTimer.bind(this)
-        this.intervalUpdate = this.intervalUpdate.bind(this)
+        this.downloadItem = this.downloadItem.bind(this)
+        this.dataUpdate = this.dataUpdate.bind(this)
         this.toggleThumbnails = this.toggleThumbnails.bind(this)
         this.getFiles = this.getFiles.bind(this)
         this.getHideThumbnailButton = this.getHideThumbnailButton.bind(this)
@@ -31,10 +32,10 @@ class Popup extends React.Component {
         this.state = {
             selectedPage: "Downloading",
             pages: ["Downloading", "Error", "All"],
-            backgroundPage: chrome.extension.getBackgroundPage(),
             files: [],
             hideThumbnails: true
         }
+
     }
 
     getHideThumbnailButton() {
@@ -56,8 +57,19 @@ class Popup extends React.Component {
         this.sendMessage(createMessage(
             popupSource,
             SOURCES.BACKGROUND,
-            { test: "test" },
+            {},
             DOWNLOAD_ALL
+        ))
+    }
+
+    downloadItem(element) {
+        this.sendMessage(createMessage(
+            popupSource,
+            SOURCES.BACKGROUND,
+            {
+                element
+            },
+            ADHOC_DOWNLOAD,
         ))
     }
 
@@ -65,15 +77,9 @@ class Popup extends React.Component {
         this.setState({ hideThumbnails: !this.state.hideThumbnails })
     }
 
-    intervalUpdate() {
-        console.log("Interval")
+    dataUpdate() {
         let files = this.getFiles()
         this.setState({ files })
-    }
-
-    setUpTimer() {
-        const intervalId = setInterval(this.intervalUpdate, 250)
-        this.setState({ intervalId })
     }
 
     componentDidMount() {
@@ -85,18 +91,18 @@ class Popup extends React.Component {
             }
         }
         )
-        this.setUpTimer()
+        window.addEventListener('storage', this.dataUpdate)
+        this.dataUpdate()
         console.log("MOUNTED")
     }
 
     componentWillUnmount() {
         console.log("UNMOUNTED")
-        clearInterval(this.state.intervalId)
+        window.removeEventListener('storage', this.dataUpdate)
     }
 
     getFiles() {
-        const bg = this.state.backgroundPage
-        const { files } = bg
+        const files = getHydratedDownloads()
         return Object.entries(files).reverse()
     }
 
@@ -117,17 +123,22 @@ class Popup extends React.Component {
         const onClick = () => {
             this.setState({ selectedPage: text })
         }
+        const files = this.getFiles()
+        const numFiles = files.filter(([_, details]) => {
+            const { status } = details
+            return this.shouldShowFile(status, text)
+        }).length
         return (
             <div onClick={onClick} key={text} className={className}>
-                <h2>{text}</h2>
+                <h2>{text} {numFiles > 0 ? `(${numFiles})` : ""}</h2>
             </div>
         )
     }
 
-    shouldShowFile(status) {
-        const { selectedPage } = this.state
+    shouldShowFile(status, overridePage = null) {
+        const page = overridePage || this.state.selectedPage
         let shouldShow = false
-        switch (selectedPage) {
+        switch (page) {
             case "Downloading":
                 shouldShow = status === DOWNLOAD_STATUS.PENDING
                 break;
@@ -185,6 +196,7 @@ class Popup extends React.Component {
                                         details={details}
                                         element={element}
                                         hideThumbnails={this.state.hideThumbnails}
+                                        downloadItem={this.downloadItem}
                                     />
                                 )
                             }
