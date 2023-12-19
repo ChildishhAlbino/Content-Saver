@@ -38,6 +38,7 @@ function getJSXForElement(elementDetails, hideThumbnails) {
 
 export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, deleteItem }) => {
     const { status, metadata, downloaded } = details
+
     return (
         <div key={element} className="file-container">
             <div className="file-container-content">
@@ -48,7 +49,7 @@ export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, d
                         <label htmlFor="downloadPercent">{downloaded}%</label>
                     </>}
                     <h4>{status}</h4>
-                    {metadata?.error && <p>{metadata.error}</p>}
+                    {metadata?.error && typeof metadata?.error == "string" && <p>{metadata.error}</p>}
                 </div>
             </div>
             <div className="file-container-thumbnail">

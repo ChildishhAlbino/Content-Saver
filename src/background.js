@@ -90,7 +90,7 @@ const referenceHandlers = {
 
 const addOnBeforeSendHeaders = (urls, headers) => {
   console.log(urls);
-  console.log("ADDING HEADERS");
+  console.log("ADDING HEADERS", { urls, headers });
   chrome.webRequest.onBeforeSendHeaders.addListener(
     headers,
     { urls: urls.filter(it => it != null && !it.includes("blob:")) },
@@ -122,17 +122,40 @@ chrome.runtime.onMessage.addListener(async (request) => {
   if (request.message && request.message === "DATA") {
     console.log(request)
     const { source, data: rawData, cookie } = request
-    downloadBatch(source, rawData, cookie);
+    await downloadBatch(source, rawData, cookie);
   }
 });
 
-function downloadBatch(source, rawData, cookie) {
+
+
+function generateCookieFromUrl(source) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.cookies.getAll({ url: source }, (cookies) => {
+        const mapped = cookies.map(cookie => {
+          return `${cookie.name}=${cookie.value}`
+        })
+        const joined = mapped.join("; ")
+        console.log({ cookies, mapped, joined });
+        return resolve(joined)
+      })
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
+async function downloadBatch(source, rawData, cookie) {
   let parentMetaData = {}
   let referrerHeader = null
   let data = new Set(rawData);
   data = Array.from(data);
+  console.log(data);
+
   if (source != null) {
-    referrerHeader = generateHeadersForSource(source, cookie);
+    const generatedCookie = await generateCookieFromUrl(source)
+    console.log({ generatedCookie });
+    referrerHeader = generateHeadersForSource(source, generatedCookie);
     addOnBeforeSendHeaders(data, referrerHeader);
     parentMetaData = {
       source,
@@ -237,9 +260,14 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
     }
     console.log(response.status)
     if (response.status > 400) {
-      const json = await response.json()
-      console.log(json)
-      throw Error(response.status)
+      console.log({ response });
+      try {
+        const json = await response.json()
+        console.log(json)
+        throw Error(response.status) 
+      } catch {
+        throw Error("Response was not in JSON format...")
+      }
     }
     const reader = response.body.getReader()
     // infinite loop while the body is downloading
@@ -328,7 +356,7 @@ const generateHeadersForSource = (source, cookie) => {
         }
       );
     }
-    console.log(details.requestHeaders)
+    console.log(source, details.requestHeaders)
     return { requestHeaders: details.requestHeaders };
   };
 }

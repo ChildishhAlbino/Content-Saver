@@ -308,9 +308,10 @@ const getSrcs = () => {
         }
       }
     });
-    let flat = srcs.flat()
-    console.log("SOURCES", srcs);
+    let flat = srcs.flat().filter(item => item !== "")
+    console.log({ flat });
     if (srcs.length > 0) {
+      console.log({ cookie: document.cookie });
       chrome.runtime.sendMessage({
         message: "DATA",
         source: `${window.location.protocol}//${window.location.hostname}/`,
