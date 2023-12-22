@@ -1,3 +1,5 @@
+const { filter } = require("jszip");
+
 const eventType = "mousedown";
 let softToggle = false;
 
@@ -74,10 +76,10 @@ const isSpecialClick = (event) => {
 
 const clickOnContent = (event) => {
   const target = event.target;
-  console.log(target.tagName, target.contentSaverTargets);
+  console.log({ targetTagName: target.tagName, csTargets: target.contentSaverTargets });
   const specialClick = isSpecialClick(event)
-  console.log("TOAD CLICK ON CONTENT", event, specialClick)
-  if (target.contentSaverTargets && !isSpecialClick(event)) {
+  console.log("TOAD CLICK ON CONTENT", { event, specialClick })
+  if (target.contentSaverTargets && !specialClick) {
     event.preventDefault();
     event.stopPropagation();
     selectContent(target.contentSaverTargets);
@@ -123,11 +125,12 @@ const getContentFromPoint = (x, y) => {
 }
 
 const hoverContent = (event) => {
-  cursorX = event.clientX,
-    cursorY = event.clientY;
+  cursorX = event.clientX
+  cursorY = event.clientY
   const filtered = getContentFromPoint(cursorX, cursorY)
-
-  if (filtered != null) {
+  if (filtered != null && filtered.length > 0) {
+    const filteredSources = getMediaSourcesFromHoveredElements(filtered.filter(item => !!item))
+    console.log({ filteredSources });
     clearHoverCSS();
     filtered.forEach((element) => {
       const parent = element.parentElement;
@@ -138,10 +141,11 @@ const hoverContent = (event) => {
         div.className += highlightClassName;
         div.style.height = `${element.offsetHeight}px`;
         div.style.width = `${element.offsetWidth}px`;
-        div.contentSaverTargets = filtered;
+        div.contentSaverTargets = filteredSources;
         div.clearListeners = () => {
           parent.removeEventListener("contextmenu", preventContextMenu);
         }
+        console.log({ div, t: div.contentSaverTargets });
         parent.appendChild(div);
       }
     });
@@ -197,10 +201,11 @@ const addSelectedOverlay = (selected) => {
 
   const element = filtered[0]
   if (element) {
+    const filteredSources = getMediaSourcesFromHoveredElements(filtered.filter(item => !!item))
     const parent = element.parentElement
     let div = document.createElement("span");
     div.className += selectedClassName;
-    div.contentSaverTargets = filtered;
+    div.contentSaverTargets = filteredSources;
     div.style.height = `${element.offsetHeight}px`;
     div.style.width = `${element.offsetWidth}px`;
     parent.appendChild(div);
@@ -230,11 +235,6 @@ const replaceValues = (item, toBeRemoved) => {
     perpetual = item.replace(value, "")
   })
   return perpetual
-}
-
-
-function getSelectedElements() {
-  return selectedOverlays.map(element => element.contentSaverTargets).flat()
 }
 
 function getSrcSetURL(element) {
@@ -270,13 +270,17 @@ function getSrcSetURL(element) {
   }
 }
 
-const getSrcs = () => {
+
+function getMediaSourcesFromOverlays() {
   const selectedOverlays = [...overlays]
-  overlays = []
-  console.log("ALL SELECTED OVERLAYS", selectedOverlays)
-  console.log("GETTING SRCS");
   const selectedElements = selectedOverlays.map(element => element.contentSaverTargets).flat()
-  console.log(selectedElements)
+  const mediaSources = [...(new Set(selectedElements))]
+  console.log({ selectedOverlays, mediaSources });
+  return mediaSources
+}
+
+const getMediaSourcesFromHoveredElements = (selectedElements) => {
+  console.log("GETTING SRCS", { selectedElements })
   if (selectedElements.length > 0) {
     let srcs = selectedElements.map((element) => {
 
@@ -298,6 +302,7 @@ const getSrcs = () => {
         return getSrcSetURL(element)
       }
       if (element.currentSrc) {
+        console.log({ element, source: element.currentSrc });
         return element.currentSrc;
       }
       if (element.src) {
@@ -309,16 +314,7 @@ const getSrcs = () => {
       }
     });
     let flat = srcs.flat().filter(item => item !== "")
-    console.log({ flat });
-    if (srcs.length > 0) {
-      console.log({ cookie: document.cookie });
-      chrome.runtime.sendMessage({
-        message: "DATA",
-        source: `${window.location.protocol}//${window.location.hostname}/`,
-        data: flat,
-        cookie: document.cookie
-      });
-    }
+    return flat
   }
 };
 
@@ -372,8 +368,15 @@ const deactivate = () => {
     ""
   );
   document.removeEventListener("DOMNodeInserted", nodeAddedToDom);
-
-  getSrcs();
+  const sources = getMediaSourcesFromOverlays()
+  console.log({ cookie: document.cookie });
+  chrome.runtime.sendMessage({
+    message: "DATA",
+    source: `${window.location.protocol}//${window.location.hostname}/`,
+    data: sources,
+    cookie: document.cookie
+  });
+  overlays = []
   clearSelectedCSS();
   clearHoverCSS();
 };
