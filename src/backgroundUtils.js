@@ -29,9 +29,8 @@ async function zipFile(response, zip) {
         const finalB64 = await getBase64(b64blob)
         console.log('b64 size', finalB64.length)
         const filenameUUID = uuidv5(finalB64, NAMESPACE_URL)
-        console.log('filename', filenameUUID)
         const extension = mime.extension(blob.type)
-        console.log(filenameUUID, extension)
+        console.log({ filenameUUID, extension })
         zip.file(`./${filenameUUID}.${extension}`, blob)
     }
 }
@@ -44,9 +43,9 @@ export async function zipResponses(responses) {
     let resolved = await Promise.all(promises)
     const content = await zip.generateAsync({ type: "blob" })
 
-    console.log(content);
+    console.log({ content });
     const url = URL.createObjectURL(content)
-    console.log(url)
+    console.log({ url })
     chrome.downloads.download({
         url,
     });
