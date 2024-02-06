@@ -45,7 +45,7 @@ function adHocDownload(req) {
   const element = getDownloadItem(url)
   const { metadata: { source, url: thumbnailUrl, cookie } } = element
   if (thumbnailUrl) {
-    downloadBatch(null, [thumbnailUrl], null)
+    downloadBatch(null, [thumbnailUrl], null, true)
     return
   }
   downloadBatch(source, [url], cookie)
@@ -55,7 +55,9 @@ function downloadAll(req) {
   const batches = {
     ["internal"]: [],
   }
-  Object.entries(getHydratedDownloads()).forEach(([url, data]) => {
+
+  const downloads = getHydratedDownloads()
+  Object.entries(downloads).forEach(([url, data]) => {
     const { source, cookie, url: thumbnailUrl } = data.metadata
     if (thumbnailUrl) {
       batches["internal"].push(thumbnailUrl)
@@ -72,8 +74,9 @@ function downloadAll(req) {
     }
   })
   Object.entries(batches).forEach(([key, items]) => {
+    console.log({ key, items });
     if (key === "internal") {
-      downloadBatch(null, items, null)
+      downloadBatch(null, items, null, true)
     } else {
       const [source, cookie] = key
       downloadBatch(source, items, cookie)
@@ -126,8 +129,6 @@ chrome.runtime.onMessage.addListener(async (request) => {
   }
 });
 
-
-
 function generateCookieFromUrl(source) {
   return new Promise((resolve, reject) => {
     try {
@@ -145,7 +146,7 @@ function generateCookieFromUrl(source) {
   })
 }
 
-async function downloadBatch(source, rawData, cookie) {
+async function downloadBatch(source, rawData, cookie, internal = false) {
   let parentMetaData = {}
   let referrerHeader = null
   let data = new Set(rawData);
@@ -170,12 +171,16 @@ async function downloadBatch(source, rawData, cookie) {
       DOWNLOAD_STATUS.PENDING,
       null
     )
-    writeDownloadItem(item, status);
+    if (!internal) {
+      writeDownloadItem(item, status);
+    }
   })
-  Promise.all(data.map((element) => downloadItem(element, parentMetaData))).then(async (res) => {
+  const downloads = Promise.all(data.map((element) => downloadItem(element, parentMetaData)))
+  downloads.then(async (res) => {
     const responses = res.filter(item => !!item);
     console.log('BLOBS', responses, responses.map(item => item.blob.size));
     if (responses.length > 0) {
+      console.log("Zipping responses!");
       zipResponses(responses).then(() => {
         if (clearHistoryTimer) {
           clearTimeout(clearHistoryTimer);

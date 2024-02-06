@@ -37,13 +37,18 @@ function getJSXForElement(elementDetails, hideThumbnails) {
 }
 
 export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, deleteItem }) => {
-    const { status, metadata, downloaded } = details
+    const { status, metadata, downloaded, totalSize } = details
+    const isPending = status === DOWNLOAD_STATUS.PENDING
+    console.log({ status, isPending, element, details });
+
+    const fileSize = totalSize?.toFixed(2)
 
     return (
         <div key={element} className="file-container">
             <div className="file-container-content">
                 <div>
                     <h3>{metadata?.fileName}</h3>
+                    <h4>{totalSize ? `${fileSize}mb` : "File size not available..."}</h4>
                     {downloaded && <>
                         <input type="range" disabled={true} value={downloaded} id="downloadPercent" />
                         <label htmlFor="downloadPercent">{downloaded}%</label>
@@ -57,9 +62,9 @@ export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, d
             </div>
 
             <div className="file-container-controls">
-                <DownloadAllButton title="Download item." onClick={() => {
+                {!isPending && <DownloadAllButton title="Download item." onClick={() => {
                     downloadItem(element)
-                }} />
+                }} />}
                 <DeleteItemButton onClick={() => {
                     deleteItem(element);
                 }} />

@@ -1,12 +1,11 @@
-const { filter } = require("jszip");
+const EVENT_TYPE = "mousedown";
+let SOFT_TOGGLE = false;
 
-const eventType = "mousedown";
-let softToggle = false;
+const SELECTED_CLASS_NAME = "CONTENT_SAVER_SELECTED"
+const TOGGLED_ON_HIGHLIGHT_CLASS_NAME = "CONTENT_SAVER_HIGHLIGHT"
+const TOGGLED_OFF_HIGHLIGHT_CLASS_NAME = "CONTENT_SAVER_INACTIVE_HIGHLIGHT"
 
-const selectedClassName = "CONTENT_SAVER_SELECTED"
-const activeHighlightClassName = "CONTENT_SAVER_HIGHLIGHT"
-const inactiveHighlightClassName = "CONTENT_SAVER_INACTIVE_HIGHLIGHT"
-let highlightClassName = activeHighlightClassName
+let currentHighlightClassName = TOGGLED_ON_HIGHLIGHT_CLASS_NAME
 
 let cursorX = null
 let cursorY = null
@@ -15,19 +14,21 @@ let active = false
 
 let overlays = []
 
+const TOGGLE_KEY_PRESSES = [" ", "T"]
+
 document.addEventListener('keydown', (event) => {
-  const key = event.key
+  const { key } = event
   if (active) {
     if (key === "`") {
-      softToggle = !softToggle;
+      SOFT_TOGGLE = !SOFT_TOGGLE;
       clearHoverCSS()
-      highlightClassName = softToggle ? inactiveHighlightClassName : activeHighlightClassName
+      currentHighlightClassName = SOFT_TOGGLE ? TOGGLED_OFF_HIGHLIGHT_CLASS_NAME : TOGGLED_ON_HIGHLIGHT_CLASS_NAME
     }
 
-    if (key === " ") {
+    if (TOGGLE_KEY_PRESSES.includes(key)) {
       event.preventDefault();
       event.stopPropagation();
-      console.log("KEY", "SPACE")
+      console.log({ key, event })
       const filtered = getContentFromPoint(cursorX, cursorY)
       if (filtered != null) {
         selectContent(filtered)
@@ -39,7 +40,7 @@ document.addEventListener('keydown', (event) => {
 chrome.runtime.onMessage.addListener((request) => {
   if (request === "ACTIVATE_CONTENT_HIGHLIGHT") {
     active = true
-    document.addEventListener(eventType, clickOnContent);
+    document.addEventListener(EVENT_TYPE, clickOnContent);
     document.addEventListener("mousemove", hoverContent);
     nodeAddedToDom(null);
     if (!document.body.className.includes(" capture-cursor")) {
@@ -70,7 +71,7 @@ const nodeAddedToDom = (event) => {
 
 
 const isSpecialClick = (event) => {
-  const specialClick = (event.type === 'click' || event.type === eventType) && softToggle
+  const specialClick = (event.type === 'click' || event.type === EVENT_TYPE) && SOFT_TOGGLE
   return specialClick
 }
 
@@ -88,7 +89,7 @@ const clickOnContent = (event) => {
 
 const getContentFromPoint = (x, y) => {
   // on mouse down print out the element with the mouse is currently over
-  var elementsFromP = document.elementsFromPoint(cursorX, cursorY);
+  var elementsFromP = document.elementsFromPoint(x, y);
   let button = elementsFromP.find((element) => {
     return element.tagName === "BUTTON";
   });
@@ -134,11 +135,11 @@ const hoverContent = (event) => {
     clearHoverCSS();
     filtered.forEach((element) => {
       const parent = element.parentElement;
-      const childOfClass = parent.querySelector(toSelector(highlightClassName));
+      const childOfClass = parent.querySelector(toSelector(currentHighlightClassName));
       if (!childOfClass) {
         parent.addEventListener("contextmenu", preventContextMenu);
         let div = document.createElement("span");
-        div.className += highlightClassName;
+        div.className += currentHighlightClassName;
         div.style.height = `${element.offsetHeight}px`;
         div.style.width = `${element.offsetWidth}px`;
         div.contentSaverTargets = filteredSources;
@@ -155,8 +156,8 @@ const hoverContent = (event) => {
 const isSelectedElement = (element) => {
   const parent = element.parentElement;
   const grandparent = parent.parentElement
-  const childOfParentClass = parent.querySelector(toSelector(selectedClassName));
-  const childOfGrandparentClass = grandparent.querySelector(toSelector(selectedClassName));
+  const childOfParentClass = parent.querySelector(toSelector(SELECTED_CLASS_NAME));
+  const childOfGrandparentClass = grandparent.querySelector(toSelector(SELECTED_CLASS_NAME));
   return childOfParentClass || childOfGrandparentClass;
 }
 
@@ -204,7 +205,7 @@ const addSelectedOverlay = (selected) => {
     const filteredSources = getMediaSourcesFromHoveredElements(filtered.filter(item => !!item))
     const parent = element.parentElement
     let div = document.createElement("span");
-    div.className += selectedClassName;
+    div.className += SELECTED_CLASS_NAME;
     div.contentSaverTargets = filteredSources;
     div.style.height = `${element.offsetHeight}px`;
     div.style.width = `${element.offsetWidth}px`;
@@ -217,7 +218,7 @@ const addSelectedOverlay = (selected) => {
 const removeSelectedOverlay = (highlighted) => {
   highlighted.forEach((element) => {
     const parent = element.parentElement;
-    const selector = parent.querySelector(toSelector(selectedClassName));
+    const selector = parent.querySelector(toSelector(SELECTED_CLASS_NAME));
     if (selector) {
       selector.parentElement.removeChild(selector);
       overlays = overlays.filter(element => element !== selector)
@@ -325,7 +326,7 @@ const preventContextMenu = e => {
 
 
 const clearHoverCSS = () => {
-  let overlays = document.querySelectorAll(toSelector(highlightClassName));
+  let overlays = document.querySelectorAll(toSelector(currentHighlightClassName));
   overlays.forEach((element) => {
     if (element.clearListeners) {
       element.clearListeners();
@@ -335,7 +336,7 @@ const clearHoverCSS = () => {
 };
 
 const clearSelectedCSS = () => {
-  let overlays = document.querySelectorAll(toSelector(selectedClassName));
+  let overlays = document.querySelectorAll(toSelector(SELECTED_CLASS_NAME));
   overlays.forEach((element) => {
     element.parentElement.removeChild(element);
   });
@@ -358,7 +359,7 @@ const preventClicks = (event) => {
 const deactivate = () => {
   active = false
   document.removeEventListener("mousemove", hoverContent);
-  document.removeEventListener(eventType, clickOnContent);
+  document.removeEventListener(EVENT_TYPE, clickOnContent);
   document.querySelectorAll("a").forEach((element) => {
     element.removeEventListener("click", preventClicks);
     element.parentElement.removeEventListener("click", preventClicks);
