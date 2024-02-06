@@ -1,52 +1,80 @@
-const EVENT_TYPE = "mousedown";
-let SOFT_TOGGLE = false;
+import {
+  SOFT_TOGGLE_KEYCODE,
+  TOGGLED_OFF_HIGHLIGHT_CLASS_NAME,
+  TOGGLED_ON_HIGHLIGHT_CLASS_NAME,
+  TOGGLE_KEY_PRESSES,
+  SELECTED_CLASS_NAME,
+} from "./constants";
+import {
+  SOFT_TOGGLE,
+  EVENT_TYPE,
+  isSpecialClick,
+  preventClicks,
+  disableATags,
+  flipSoftToggle,
+  isSoftToggle,
+} from "./control";
+import { createMutationObserver, observe } from "./observer";
 
-const SELECTED_CLASS_NAME = "CONTENT_SAVER_SELECTED"
-const TOGGLED_ON_HIGHLIGHT_CLASS_NAME = "CONTENT_SAVER_HIGHLIGHT"
-const TOGGLED_OFF_HIGHLIGHT_CLASS_NAME = "CONTENT_SAVER_INACTIVE_HIGHLIGHT"
+const OBSERVER = createMutationObserver();
 
-let currentHighlightClassName = TOGGLED_ON_HIGHLIGHT_CLASS_NAME
+let currentHighlightClassName = TOGGLED_ON_HIGHLIGHT_CLASS_NAME;
 
-let cursorX = null
-let cursorY = null
+let cursorX = null;
+let cursorY = null;
+let active = false;
+let overlays = [];
 
-let active = false
-
-let overlays = []
-
-const TOGGLE_KEY_PRESSES = [" ", "T"]
-
-document.addEventListener('keydown', (event) => {
-  const { key } = event
+document.addEventListener("keydown", (event) => {
+  const { key } = event;
   if (active) {
-    if (key === "`") {
-      SOFT_TOGGLE = !SOFT_TOGGLE;
-      clearHoverCSS()
-      currentHighlightClassName = SOFT_TOGGLE ? TOGGLED_OFF_HIGHLIGHT_CLASS_NAME : TOGGLED_ON_HIGHLIGHT_CLASS_NAME
+    if (key === SOFT_TOGGLE_KEYCODE) {
+      flipSoftToggle()
+      clearHoverCSS();
+      currentHighlightClassName = isSoftToggle()
+        ? TOGGLED_OFF_HIGHLIGHT_CLASS_NAME
+        : TOGGLED_ON_HIGHLIGHT_CLASS_NAME;
     }
 
     if (TOGGLE_KEY_PRESSES.includes(key)) {
       event.preventDefault();
       event.stopPropagation();
-      console.log({ key, event })
-      const filtered = getContentFromPoint(cursorX, cursorY)
+      console.log({ key, event });
+      const filtered = getContentFromPoint(cursorX, cursorY);
       if (filtered != null) {
-        selectContent(filtered)
+        selectContent(filtered);
       }
     }
   }
 });
 
+function clickOnContent(event) {
+  const { target, clientX, clientY } = event;
+  console.log({
+    targetTagName: target.tagName,
+    csTargets: target.contentSaverTargets,
+  });
+  const specialClick = isSpecialClick(event);
+  if (target.contentSaverTargets && !specialClick) {
+    event.preventDefault();
+    event.stopPropagation();
+    const filtered = getContentFromPoint(clientX, clientY);
+    if (filtered != null) {
+      selectContent(filtered);
+    }
+  }
+}
+
 chrome.runtime.onMessage.addListener((request) => {
   if (request === "ACTIVATE_CONTENT_HIGHLIGHT") {
-    active = true
+    active = true;
     document.addEventListener(EVENT_TYPE, clickOnContent);
     document.addEventListener("mousemove", hoverContent);
-    nodeAddedToDom(null);
+    disableATags();
     if (!document.body.className.includes(" capture-cursor")) {
       document.body.className += " capture-cursor";
     }
-    document.addEventListener("DOMNodeInserted", nodeAddedToDom);
+    observe(OBSERVER);
   }
 
   if (request === "DEACTIVATE_CONTENT_HIGHLIGHT") {
@@ -59,32 +87,7 @@ chrome.runtime.onMessage.addListener((request) => {
 });
 
 const toSelector = (className) => {
-  return `.${className}`
-}
-
-const nodeAddedToDom = (event) => {
-  document.querySelectorAll("a").forEach((element) => {
-    element.addEventListener("click", preventClicks);
-    element.parentElement.addEventListener("click", preventClicks);
-  });
-};
-
-
-const isSpecialClick = (event) => {
-  const specialClick = (event.type === 'click' || event.type === EVENT_TYPE) && SOFT_TOGGLE
-  return specialClick
-}
-
-const clickOnContent = (event) => {
-  const target = event.target;
-  console.log({ targetTagName: target.tagName, csTargets: target.contentSaverTargets });
-  const specialClick = isSpecialClick(event)
-  console.log("TOAD CLICK ON CONTENT", { event, specialClick })
-  if (target.contentSaverTargets && !specialClick) {
-    event.preventDefault();
-    event.stopPropagation();
-    selectContent(target.contentSaverTargets);
-  }
+  return `.${className}`;
 };
 
 const getContentFromPoint = (x, y) => {
@@ -114,28 +117,32 @@ const getContentFromPoint = (x, y) => {
         return element.tagName == "IMG";
       }),
       filtered.find((element) => {
-        return ["DIV", "SPAN"].includes(element.tagName)
-      })
+        return ["DIV", "SPAN"].includes(element.tagName);
+      }),
     ];
     filtered = firsts.filter((element) => {
       return element != null;
     });
     return filtered;
   }
-  return null
-}
+  return null;
+};
 
 const hoverContent = (event) => {
-  cursorX = event.clientX
-  cursorY = event.clientY
-  const filtered = getContentFromPoint(cursorX, cursorY)
+  cursorX = event.clientX;
+  cursorY = event.clientY;
+  const filtered = getContentFromPoint(cursorX, cursorY);
   if (filtered != null && filtered.length > 0) {
-    const filteredSources = getMediaSourcesFromHoveredElements(filtered.filter(item => !!item))
+    const filteredSources = getMediaSourcesFromHoveredElements(
+      filtered.filter((item) => !!item)
+    );
     console.log({ filteredSources });
     clearHoverCSS();
     filtered.forEach((element) => {
       const parent = element.parentElement;
-      const childOfClass = parent.querySelector(toSelector(currentHighlightClassName));
+      const childOfClass = parent.querySelector(
+        toSelector(currentHighlightClassName)
+      );
       if (!childOfClass) {
         parent.addEventListener("contextmenu", preventContextMenu);
         let div = document.createElement("span");
@@ -145,7 +152,7 @@ const hoverContent = (event) => {
         div.contentSaverTargets = filteredSources;
         div.clearListeners = () => {
           parent.removeEventListener("contextmenu", preventContextMenu);
-        }
+        };
         console.log({ div, t: div.contentSaverTargets });
         parent.appendChild(div);
       }
@@ -155,21 +162,26 @@ const hoverContent = (event) => {
 
 const isSelectedElement = (element) => {
   const parent = element.parentElement;
-  const grandparent = parent.parentElement
-  const childOfParentClass = parent.querySelector(toSelector(SELECTED_CLASS_NAME));
-  const childOfGrandparentClass = grandparent.querySelector(toSelector(SELECTED_CLASS_NAME));
+  console.log({ element, parent });
+  const grandparent = parent.parentElement;
+  const childOfParentClass = parent.querySelector(
+    toSelector(SELECTED_CLASS_NAME)
+  );
+  const childOfGrandparentClass = grandparent.querySelector(
+    toSelector(SELECTED_CLASS_NAME)
+  );
   return childOfParentClass || childOfGrandparentClass;
-}
+};
 
 const selectContent = (filtered) => {
   const notHighlighted = filtered.filter((element) => {
-    return !isSelectedElement(element)
+    return !isSelectedElement(element);
   });
 
   console.log("notHighlighted", notHighlighted);
 
   const highlighted = filtered.filter((element) => {
-    return isSelectedElement(element)
+    return isSelectedElement(element);
   });
 
   console.log("highlighted", highlighted);
@@ -193,17 +205,18 @@ const addSelectedOverlay = (selected) => {
     }),
     filtered.find((element) => {
       return element.tagName !== "IMG" && element.tagName !== "VIDEO";
-    })
+    }),
   ];
   filtered = firsts.filter((element) => {
     return element != null;
   });
 
-
-  const element = filtered[0]
+  const element = filtered[0];
   if (element) {
-    const filteredSources = getMediaSourcesFromHoveredElements(filtered.filter(item => !!item))
-    const parent = element.parentElement
+    const filteredSources = getMediaSourcesFromHoveredElements(
+      filtered.filter((item) => !!item)
+    );
+    const parent = element.parentElement;
     let div = document.createElement("span");
     div.className += SELECTED_CLASS_NAME;
     div.contentSaverTargets = filteredSources;
@@ -221,73 +234,77 @@ const removeSelectedOverlay = (highlighted) => {
     const selector = parent.querySelector(toSelector(SELECTED_CLASS_NAME));
     if (selector) {
       selector.parentElement.removeChild(selector);
-      overlays = overlays.filter(element => element !== selector)
+      overlays = overlays.filter((element) => element !== selector);
       console.log("overlays", overlays.length);
     }
   });
 };
 
-
-const isMultiplier = item => item.includes('x') || item.includes("X")
+const isMultiplier = (item) => item.includes("x") || item.includes("X");
 
 const replaceValues = (item, toBeRemoved) => {
-  let perpetual = item
-  toBeRemoved.forEach(value => {
-    perpetual = item.replace(value, "")
-  })
-  return perpetual
-}
+  let perpetual = item;
+  toBeRemoved.forEach((value) => {
+    perpetual = item.replace(value, "");
+  });
+  return perpetual;
+};
 
 function getSrcSetURL(element) {
-  const { srcset } = element
+  const { srcset } = element;
   console.log(element.srcset);
-  const urls = srcset.split(',')
-  const groups = urls.map(item => item.split(" "))
+  const urls = srcset.split(",");
+  const groups = urls.map((item) => item.split(" "));
   console.log(groups);
   const items = groups.map(([url, size]) => {
     console.log(url, size);
-    const replacedString = replaceValues(size, ['x', "X", "w", "W"])
-    console.log(replacedString)
-    const numericSize = parseInt(replacedString)
-    return { url, size: numericSize, isMultiplier: isMultiplier(size) }
-  })
-  const itemsHasMultiplier = items.find(item => item.isMultiplier) != null
+    const replacedString = replaceValues(size, ["x", "X", "w", "W"]);
+    console.log(replacedString);
+    const numericSize = parseInt(replacedString);
+    return { url, size: numericSize, isMultiplier: isMultiplier(size) };
+  });
+  const itemsHasMultiplier = items.find((item) => item.isMultiplier) != null;
   // if multiplier
   if (itemsHasMultiplier) {
-    const item = items.filter(item => item.isMultiplier).sort().reverse()[0]
-    console.log(item)
-    return item.url
+    const item = items
+      .filter((item) => item.isMultiplier)
+      .sort()
+      .reverse()[0];
+    console.log(item);
+    return item.url;
   }
   // else width
   else {
-    const sorted = items.sort((a, b) => {
-      const { size: sizeA } = a
-      const { size: sizeB } = b
-      return sizeA - sizeB
-    }).reverse()
-    const item = sorted[0]
-    console.log(item)
-    return item.url
+    const sorted = items
+      .sort((a, b) => {
+        const { size: sizeA } = a;
+        const { size: sizeB } = b;
+        return sizeA - sizeB;
+      })
+      .reverse();
+    const item = sorted[0];
+    console.log(item);
+    return item.url;
   }
 }
 
-
 function getMediaSourcesFromOverlays() {
-  const selectedOverlays = [...overlays]
-  const selectedElements = selectedOverlays.map(element => element.contentSaverTargets).flat()
-  const mediaSources = [...(new Set(selectedElements))]
+  const selectedOverlays = [...overlays];
+  const selectedElements = selectedOverlays
+    .map((element) => element.contentSaverTargets)
+    .flat();
+  const mediaSources = [...new Set(selectedElements)];
   console.log({ selectedOverlays, mediaSources });
-  return mediaSources
+  return mediaSources;
 }
 
 const getMediaSourcesFromHoveredElements = (selectedElements) => {
-  console.log("GETTING SRCS", { selectedElements })
+  console.log("GETTING SRCS", { selectedElements });
   if (selectedElements.length > 0) {
     let srcs = selectedElements.map((element) => {
-
       if (element.href) {
-        console.log(element.href)
-        return element.href
+        console.log(element.href);
+        return element.href;
       }
 
       if (element.style.backgroundImage) {
@@ -296,11 +313,11 @@ const getMediaSourcesFromHoveredElements = (selectedElements) => {
         let re = new RegExp(pattern);
         let match = element.style.backgroundImage.match(re);
         if (match && match[0]) {
-          return [match[0], element.currentSrc, element.src]
+          return [match[0], element.currentSrc, element.src];
         }
       }
       if (element.srcset) {
-        return getSrcSetURL(element)
+        return getSrcSetURL(element);
       }
       if (element.currentSrc) {
         console.log({ element, source: element.currentSrc });
@@ -314,19 +331,20 @@ const getMediaSourcesFromHoveredElements = (selectedElements) => {
         }
       }
     });
-    let flat = srcs.flat().filter(item => item !== "")
-    return flat
+    let flat = srcs.flat().filter((item) => item !== "");
+    return flat;
   }
 };
 
-const preventContextMenu = e => {
-  e.preventDefault()
-  e.stopPropagation()
-}
-
+const preventContextMenu = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+};
 
 const clearHoverCSS = () => {
-  let overlays = document.querySelectorAll(toSelector(currentHighlightClassName));
+  let overlays = document.querySelectorAll(
+    toSelector(currentHighlightClassName)
+  );
   overlays.forEach((element) => {
     if (element.clearListeners) {
       element.clearListeners();
@@ -342,24 +360,11 @@ const clearSelectedCSS = () => {
   });
 };
 
-const preventClicks = (event) => {
-  var x = event.clientX,
-    y = event.clientY;
-  // on mouse down print out the element with the mouse is currently over
-  var elementsFromP = document.elementsFromPoint(x, y);
-  let button = elementsFromP.find((element) => {
-    return element.tagName === "BUTTON";
-  });
-  if (!button && !isSpecialClick(event)) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-};
-
 const deactivate = () => {
-  active = false
+  active = false;
   document.removeEventListener("mousemove", hoverContent);
   document.removeEventListener(EVENT_TYPE, clickOnContent);
+  OBSERVER.disconnect();
   document.querySelectorAll("a").forEach((element) => {
     element.removeEventListener("click", preventClicks);
     element.parentElement.removeEventListener("click", preventClicks);
@@ -368,16 +373,15 @@ const deactivate = () => {
     " capture-cursor",
     ""
   );
-  document.removeEventListener("DOMNodeInserted", nodeAddedToDom);
-  const sources = getMediaSourcesFromOverlays()
+  const sources = getMediaSourcesFromOverlays();
   console.log({ cookie: document.cookie });
   chrome.runtime.sendMessage({
     message: "DATA",
     source: `${window.location.protocol}//${window.location.hostname}/`,
     data: sources,
-    cookie: document.cookie
+    cookie: document.cookie,
   });
-  overlays = []
+  overlays = [];
   clearSelectedCSS();
   clearHoverCSS();
 };
