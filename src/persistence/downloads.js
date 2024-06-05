@@ -1,11 +1,12 @@
 import { write, get, clear } from "./store"
 
 export const writeDownloadItem = async (key, status) => {
+    console.log({ key, status });
     const existing = await get(key)
     if (!existing) {
-        newItem(key)
+        await newItem(key)
     }
-    write(key, JSON.stringify(status))
+    await write(key, JSON.stringify(status))
 }
 
 export const getDownloadItem = async (key) => {
@@ -13,17 +14,18 @@ export const getDownloadItem = async (key) => {
 }
 
 export const getAllDownloads = async () => {
-    const items = await get("downloads")
-    return items
+    return (await get("downloads")) || []
 }
 
 export const getHydratedDownloads = async () => {
-    const rawPromises = getAllDownloads().map(async (download) => {
+    const downloads = await getAllDownloads()
+    const rawPromises = downloads.map(async (download) => {
         const details = await getDownloadItem(download)
         return details ? [download, details] : null
     }).filter(item => item != null)
     const entries = await Promise.all(rawPromises)
-    return Object.fromEntries(entries) || {}
+    const value = Object.fromEntries(entries) || {}
+    return value
 }
 
 const newItem = async (itemId) => {
@@ -33,12 +35,12 @@ const newItem = async (itemId) => {
 }
 
 const writeDownloads = async (downloads) => {
-    await write("downloads", JSON.stringify(downloads));
+    await write("downloads", downloads);
 }
 
 export const deleteDownload = async (key) => {
     await clear(key)
-    const remaining = await getAllDownloads().filter(item => item !== key)
+    const remaining = (await getAllDownloads()).filter(item => item !== key)
     await writeDownloads(remaining)
 }
 

@@ -15,11 +15,13 @@ function isVideo(contentType) {
 function getJSXForElement(elementDetails, hideThumbnails) {
     const { metadata } = elementDetails
     if (metadata) {
-        const { url: fullUrl, contentType, previewUrl } = metadata
+        const { url: fullUrl, contentType, previewUrl, tempBlob } = metadata
+        console.log({ tempBlob });
         const elementIsImg = isImage(contentType)
         const elementIsVideo = isVideo(contentType)
         const className = hideThumbnails ? "hide-thumbnail" : ""
         const url = previewUrl || fullUrl
+        console.log({ url });
         if (elementIsImg) {
             return (
                 <img className={className} src={url} />

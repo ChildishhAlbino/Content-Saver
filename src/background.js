@@ -111,8 +111,8 @@ const addOnBeforeSendHeaders = (urls, headers) => {
 };
 
 
-chrome.runtime.onMessage.addListener(async (request) => {
-
+chrome.runtime.onMessage.addListener(async (request, sender) => {
+  console.log({ request, sender });
   if (validateMessage(request, backgroundSource)) {
     console.log(request);
     const handler = referenceHandlers[request.REFERENCE];
@@ -134,7 +134,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
   if (request.message && request.message === "DATA") {
     console.log(request)
     const { source, data: rawData, cookie } = request
-    await downloadBatch(source, rawData, cookie);
+    await downloadBatch(source, rawData, cookie, sender.tab.id);
   }
 });
 
@@ -155,7 +155,7 @@ function generateCookieFromUrl(source) {
   })
 }
 
-async function downloadBatch(source, rawData, cookie, internal = false) {
+async function downloadBatch(source, rawData, cookie, tabId, internal = false) {
   let parentMetaData = {}
   let referrerHeader = null
   let data = new Set(rawData);
@@ -297,13 +297,15 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
       if (done) {
         console.log("Finished", element, contentType)
         if (!isReattempt) {
+          const finalBlob = new Blob(dataArrays)
           const statusItem = createDownloadItem(
             contentLengthAsMb,
             "100",
             DOWNLOAD_STATUS.SUCCESS,
             {
               ...baseMetadata,
-              url: convertBlobToDataUrl(new Blob(dataArrays)),
+              tempBlob: smallerBlob || finalBlob,
+              url: "",
               // url: URL.createObjectURL(new Blob(dataArrays, { type: contentType })),
               previewUrl: smallerBlobUrl
             }
@@ -316,7 +318,7 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
       const currentAsMB = contentDownloaded / 1024 / 1024
       if (currentAsMB >= maxBlobSize && !smallerBlob) {
         smallerBlob = new Blob(dataArrays, { type: contentType })
-        smallerBlobUrl = convertBlobToDataUrl(smallerBlob)
+        smallerBlobUrl = await convertBlobToDataUrl(smallerBlob)
         // smallerBlobUrl = URL.createObjectURL(smallerBlob)
         console.log({ smallerBlob, smallerBlobUrl })
       }
@@ -331,7 +333,8 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
           DOWNLOAD_STATUS.PENDING,
           {
             ...baseMetadata,
-            url: smallerBlobUrl || convertBlobToDataUrl(urlBlob)
+            tempBlob: smallerBlob || urlBlob,
+            url: "URL"
           }
         )
         writeDownloadItem(element, statusItem)
@@ -360,6 +363,7 @@ async function convertBlobToDataUrl(blob) {
   const base64String = await new Promise((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result);
+    reader.onabort = () => reject(reader.error)
     reader.readAsDataURL(blob);
   });
   return `data:application/octet-stream;base64,${base64String}`

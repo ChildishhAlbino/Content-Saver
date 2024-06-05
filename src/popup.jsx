@@ -47,8 +47,8 @@ class Popup extends React.Component {
         chrome.runtime.sendMessage(message)
     }
 
-    postReceiveMessage() {
-        const files = this.getFiles()
+    async postReceiveMessage() {
+        const files = await this.getFiles()
         console.log(files)
         this.setState({ files })
     }
@@ -74,11 +74,11 @@ class Popup extends React.Component {
     }
 
     toggleThumbnails() {
-        this.setState({ hideThumbnails: !this.state.hideThumbnails })
+        // this.setState({ hideThumbnails: !this.state.hideThumbnails })
     }
 
-    dataUpdate() {
-        let files = this.getFiles()
+    async dataUpdate() {
+        let files = await this.getFiles()
         this.setState({ files })
     }
 
@@ -91,6 +91,7 @@ class Popup extends React.Component {
             }
         }
         )
+        chrome.storage.onChanged.addListener(this.dataUpdate)
         window.addEventListener('storage', this.dataUpdate)
         this.dataUpdate()
         console.log("MOUNTED")
@@ -98,11 +99,12 @@ class Popup extends React.Component {
 
     componentWillUnmount() {
         console.log("UNMOUNTED")
+        chrome.storage.onChanged.removeListener(this.dataUpdate)
         window.removeEventListener('storage', this.dataUpdate)
     }
 
-    getFiles() {
-        const files = getHydratedDownloads()
+    async getFiles() {
+        const files = await getHydratedDownloads()
         return Object.entries(files).reverse()
     }
 
@@ -123,8 +125,7 @@ class Popup extends React.Component {
         const onClick = () => {
             this.setState({ selectedPage: text })
         }
-        const files = this.getFiles()
-        const numFiles = files.filter(([_, details]) => {
+        const numFiles = this.state.files.filter(([_, details]) => {
             const { status } = details
             return this.shouldShowFile(status, text)
         }).length
@@ -156,6 +157,7 @@ class Popup extends React.Component {
 
     clearPage() {
         const { files } = this.state
+        console.log({ files });
         const filesToBeDeleted = files.filter(([_, details]) => {
             const { status } = details
             return this.shouldShowFile(status)
@@ -186,14 +188,16 @@ class Popup extends React.Component {
                 <div className="file-wrapper">
                     {
                         files.map(([element, details], index) => {
-                            const { status } = details
+                            console.log({ element, details });
+                            const parsedDetails = JSON.parse(details)
+                            const { status } = parsedDetails
                             const shouldShowFile = this.shouldShowFile(status)
                             if (shouldShowFile) {
                                 return (
                                     <DownloadItem
                                         key={element}
                                         deleteItem={this.deleteItem}
-                                        details={details}
+                                        details={parsedDetails}
                                         element={element}
                                         hideThumbnails={this.state.hideThumbnails}
                                         downloadItem={this.downloadItem}
