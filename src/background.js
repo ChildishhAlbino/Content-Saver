@@ -29,11 +29,19 @@ const historyClearTime = 5 * 60
 const maxBlobSize = 2
 
 let clearHistoryTimer = null
+const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
+
 chrome.contextMenus.create({
+  id: CONTEXT_MENU_ITEM_ID,
   title: "Toggle Content Saver",
-  onclick: toggleHighlight,
 });
 
+chrome.contextMenus.onClicked.addListener((event => {
+  console.log(event)
+  if (event.menuItemId == CONTEXT_MENU_ITEM_ID) {
+    toggleHighlight()
+  }
+}))
 
 function deleteDownloadItem(req) {
   const key = req.PAYLOAD.key
@@ -97,7 +105,8 @@ const addOnBeforeSendHeaders = (urls, headers) => {
   chrome.webRequest.onBeforeSendHeaders.addListener(
     headers,
     { urls: urls.filter(it => it != null && !it.includes("blob:")) },
-    ["requestHeaders", "extraHeaders", "blocking"]
+    // TODO: CHECK THAT THIS STILL WORKS AFTER REMOVING BLOCKING
+    ["requestHeaders", "extraHeaders"]
   );
 };
 
@@ -200,8 +209,9 @@ function clearHistory() {
   clearAllDownloads()
   console.log("HISTORY CLEARED")
 }
-
+chrome.commands.getAll().then(data => console.log(data))
 chrome.commands.onCommand.addListener(function (command) {
+  console.log({ command });
   if (command == "toggle-highlight-content") {
     toggleHighlight();
   }
@@ -293,7 +303,8 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
             DOWNLOAD_STATUS.SUCCESS,
             {
               ...baseMetadata,
-              url: URL.createObjectURL(new Blob(dataArrays, { type: contentType })),
+              url: convertBlobToDataUrl(new Blob(dataArrays)),
+              // url: URL.createObjectURL(new Blob(dataArrays, { type: contentType })),
               previewUrl: smallerBlobUrl
             }
           )
@@ -305,8 +316,9 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
       const currentAsMB = contentDownloaded / 1024 / 1024
       if (currentAsMB >= maxBlobSize && !smallerBlob) {
         smallerBlob = new Blob(dataArrays, { type: contentType })
-        smallerBlobUrl = URL.createObjectURL(smallerBlob)
-        console.log("SMALLER BLOB", smallerBlob)
+        smallerBlobUrl = convertBlobToDataUrl(smallerBlob)
+        // smallerBlobUrl = URL.createObjectURL(smallerBlob)
+        console.log({ smallerBlob, smallerBlobUrl })
       }
       const percent = ((currentAsMB / contentLengthAsMb) * 100).toFixed(2)
 
@@ -319,7 +331,7 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
           DOWNLOAD_STATUS.PENDING,
           {
             ...baseMetadata,
-            url: smallerBlobUrl || URL.createObjectURL(urlBlob)
+            url: smallerBlobUrl || convertBlobToDataUrl(urlBlob)
           }
         )
         writeDownloadItem(element, statusItem)
@@ -344,6 +356,14 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
 
 };
 
+async function convertBlobToDataUrl(blob) {
+  const base64String = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  return `data:application/octet-stream;base64,${base64String}`
+}
 
 const generateHeadersForSource = (source, cookie) => {
   return (details) => {

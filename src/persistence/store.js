@@ -1,6 +1,7 @@
-export const write = (key, data) => {
+export const write = async (key, data) => {
     try {
-        localStorage.setItem(key, data);
+        console.log({ chrome })
+        await chrome.storage.local.set({ [key]: data });
         return data
     } catch (error) {
         console.error(error);
@@ -8,30 +9,31 @@ export const write = (key, data) => {
     }
 }
 
-export const get = (key) => {
+export const get = async (key) => {
     if (key) {
-        return localStorage[key]
+        return await chrome.storage.local.get(key)
     } else {
-        return Object.freeze({ ...localStorage });
+        const allValues = await chrome.storage.local.get(null)
+        return Object.freeze({ ...allValues });
     }
 }
 
-const clearAll = () => {
-    localStorage.clear()
+const clearAll = async () => {
+    await chrome.storage.local.clear(null)
 }
 
-const clearKey = (key) => {
+const clearKey = async (key) => {
     try {
-        localStorage.removeItem(key);
+        await chrome.storage.local.clear(key)
     } catch (error) {
         console.error(error);
         throw error;
     }
 }
 
-export const clear = (key) => {
+export const clear = async (key) => {
     if (key) {
-        clearKey(key);
+        await clearKey(key);
     } else {
         clearAll()
     }

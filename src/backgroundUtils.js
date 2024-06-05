@@ -40,13 +40,14 @@ export async function zipResponses(responses) {
     let promises = responses.map(async (response) => {
         await zipFile(response, zip)
     })
-    let resolved = await Promise.all(promises)
-    const content = await zip.generateAsync({ type: "blob" })
+    await Promise.all(promises)
+    const zipDataB64 = await zip.generateAsync({ type: "base64" })
 
-    console.log({ content });
-    const url = URL.createObjectURL(content)
+    console.log({ content: zipDataB64 });
+    const url = `data:application/octet-stream;base64,${zipDataB64}`
     console.log({ url })
     chrome.downloads.download({
         url,
+        filename: `${uuidv5(zipDataB64, NAMESPACE_URL)}.zip`
     });
 }

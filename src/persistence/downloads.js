@@ -1,48 +1,49 @@
 import { write, get, clear } from "./store"
 
-export const writeDownloadItem = (key, status) => {
-    const existing = get(key)
+export const writeDownloadItem = async (key, status) => {
+    const existing = await get(key)
     if (!existing) {
         newItem(key)
     }
     write(key, JSON.stringify(status))
 }
 
-export const getDownloadItem = (key) => {
-    return JSON.parse(get(key) || null)
+export const getDownloadItem = async (key) => {
+    return await get(key)
 }
 
-export const getAllDownloads = () => {
-    const items = JSON.parse(get("downloads") || '[]')
+export const getAllDownloads = async () => {
+    const items = await get("downloads")
     return items
 }
 
-export const getHydratedDownloads = () => {
-    const entries = getAllDownloads().map((download) => {
-        const details = getDownloadItem(download)
+export const getHydratedDownloads = async () => {
+    const rawPromises = getAllDownloads().map(async (download) => {
+        const details = await getDownloadItem(download)
         return details ? [download, details] : null
     }).filter(item => item != null)
+    const entries = await Promise.all(rawPromises)
     return Object.fromEntries(entries) || {}
 }
 
-const newItem = (itemId) => {
-    const downloads = getAllDownloads()
+const newItem = async (itemId) => {
+    const downloads = await getAllDownloads()
     downloads.push(itemId)
-    writeDownloads(downloads)
+    await writeDownloads(downloads)
 }
 
-const writeDownloads = (downloads) => {
-    write("downloads", JSON.stringify(downloads));
+const writeDownloads = async (downloads) => {
+    await write("downloads", JSON.stringify(downloads));
 }
 
-export const deleteDownload = (key) => {
-    clear(key)
-    const remaining = getAllDownloads().filter(item => item !== key)
-    writeDownloads(remaining)
+export const deleteDownload = async (key) => {
+    await clear(key)
+    const remaining = await getAllDownloads().filter(item => item !== key)
+    await writeDownloads(remaining)
 }
 
-export const clearAllDownloads = () => {
-    const downloads = getAllDownloads()
-    writeDownloads([])
-    downloads.forEach(deleteDownload)
+export const clearAllDownloads = async () => {
+    const downloads = await getAllDownloads()
+    await writeDownloads([])
+    await Promise.all(downloads.map(deleteDownload))
 }

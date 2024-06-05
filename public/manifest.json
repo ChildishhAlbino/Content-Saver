@@ -1,8 +1,8 @@
 {
     "name": "Content Saver",
-    "version": "1.0",
-    "manifest_version": 2,
-    "browser_action": {
+    "version": "2.0",
+    "manifest_version": 3,
+    "action": {
         "default_popup": "popup.html",
         "default_title": "Open the menu."
     },
@@ -25,29 +25,33 @@
         }
     ],
     "background": {
-        "scripts": [
-            "background.js"
-        ]
+        "service_worker": "background.js"
     },
     "permissions": [
         "tabs",
         "downloads",
         "contextMenus",
         "cookies",
-        "<all_urls>",
         "webRequest",
-        "webRequestBlocking"
+        "storage"
     ],
     "commands": {
         "toggle-highlight-content": {
             "suggested_key": {
                 "default": "Ctrl+Shift+Space",
-                "mac": "Command+Shift+Space"
+                "mac": "MacCtrl+Shift+Space"
             },
             "description": "Toggle Highlight Content"
         }
     },
     "web_accessible_resources": [
-        "icons/*.png"
+        {
+            "resources": [
+                "icons/*.png"
+            ],
+            "matches": [
+                "*://*/*"
+            ]
+        }
     ]
 }
