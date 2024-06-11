@@ -20,12 +20,12 @@ export const get = async (key) => {
 }
 
 const clearAll = async () => {
-    await chrome.storage.local.clear(null)
+    await chrome.storage.local.clear()
 }
 
 const clearKey = async (key) => {
     try {
-        await chrome.storage.local.set({ [key]: {} });
+        await chrome.storage.local.remove(key)
     } catch (error) {
         console.error(error);
         throw error;
