@@ -3,11 +3,10 @@ import { render } from 'react-dom'
 
 import { createMessage, validateMessage } from './util';
 import { SOURCES } from './sources';
-import { FaDownload, FaHistory } from 'react-icons/fa'
 import { DOWNLOAD_STATUS } from './downloadUtils';
-import { ToggleThumbnailsButton, DeleteItemButton, ClearPageButton, DownloadAllButton } from './components/buttons.jsx'
+import { ToggleThumbnailsButton, ClearPageButton, DownloadAllButton } from './components/buttons.jsx'
 import { DownloadItem } from './components/downloadItem/downloadItem.jsx';
-import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL } from "./commands"
+import { DELETE_DOWNLOAD_ITEM, ADHOC_DOWNLOAD, DOWNLOAD_ALL, CANCEL_DOWNLOAD } from "./commands"
 import {
     getHydratedDownloads
 } from './persistence/downloads'
@@ -18,7 +17,7 @@ class Popup extends React.Component {
 
     constructor(props) {
         super(props)
-
+        this.cancelDownload = this.cancelDownload.bind(this)
         this.downloadItem = this.downloadItem.bind(this)
         this.dataUpdate = this.dataUpdate.bind(this)
         this.toggleThumbnails = this.toggleThumbnails.bind(this)
@@ -115,6 +114,15 @@ class Popup extends React.Component {
         ))
     }
 
+    cancelDownload(key) {
+        this.sendMessage(createMessage(
+            popupSource,
+            SOURCES.OFFSCREEN,
+            { key },
+            CANCEL_DOWNLOAD
+        ))
+    }
+
     pageSelector(text) {
         let className = 'page-selector'
         if (this.state.selectedPage === text) {
@@ -187,12 +195,14 @@ class Popup extends React.Component {
                     {
                         files.map(([element, details], index) => {
                             const { status } = details
+                            console.log({ ...this.state });
+                            const downloadingPageIsSelected = this.state.selectedPage == "Downloading"
                             const shouldShowFile = this.shouldShowFile(status)
                             if (shouldShowFile) {
                                 return (
                                     <DownloadItem
                                         key={element}
-                                        deleteItem={this.deleteItem}
+                                        trashButtonAction={downloadingPageIsSelected ? this.cancelDownload : this.deleteItem}
                                         details={details}
                                         element={element}
                                         hideThumbnails={this.state.hideThumbnails}

@@ -26,7 +26,7 @@ function getJSXForElement(elementDetails, hideThumbnails) {
             )
         }
         if (elementIsVideo) {
-            return (<video className={className} controls muted>
+            return (<video autoPlay loop className={className} muted>
                 <source src={url} />
             </video>)
         }
@@ -36,7 +36,7 @@ function getJSXForElement(elementDetails, hideThumbnails) {
     return null
 }
 
-export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, deleteItem }) => {
+export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, trashButtonAction }) => {
     const { status, metadata, downloaded, totalSize } = details
     const isPending = status === DOWNLOAD_STATUS.PENDING
     console.log({ status, isPending, element, details });
@@ -66,7 +66,7 @@ export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, d
                     downloadItem(element)
                 }} />}
                 <DeleteItemButton onClick={() => {
-                    deleteItem(element);
+                    trashButtonAction(element);
                 }} />
             </div>
         </div>

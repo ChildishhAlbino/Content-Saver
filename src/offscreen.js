@@ -7,23 +7,26 @@ import {
     deleteDownload,
     clearAllDownloads,
     getDownloadItem,
+    getHydratedDownloads
 } from './persistence/downloads'
 import { listenForMessages } from "./messaging/message-handler";
-import { ACTION_DOWNLOAD, DELETE_DOWNLOAD_ITEM } from "./commands";
+import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL } from "./commands";
+import { createMessage } from "./util";
 
 const historyClearTime = 5 * 60
 const maxBlobSize = 2
 
 let clearHistoryTimer = null
 
-// chrome.runtime.onMessage.addListener(handleIncomingMessage);
-
 const referenceHandlers = {
     [DELETE_DOWNLOAD_ITEM]: deleteDownloadItem,
-    [ACTION_DOWNLOAD]: actionDownload
+    [ACTION_DOWNLOAD]: actionDownload,
+    [ADHOC_DOWNLOAD]: adHocDownload,
+    [DOWNLOAD_ALL]: downloadAllItems,
+    [CANCEL_DOWNLOAD]: cancelDownload
 }
 
-listenForMessages(SOURCES.OFFSCREEN, referenceHandlers)
+listenForMessages(SOURCES.OFFSCREEN, referenceHandlers, false)
 
 async function actionDownload(req) {
     const { data, parentMetaData, referrerHeader, internal } = req.PAYLOAD
@@ -60,10 +63,52 @@ async function actionDownload(req) {
     });
 }
 
+async function adHocDownload(req) {
+    console.log({ req });
+    const { element } = req.PAYLOAD
+    const msg = createMessage(
+        SOURCES.OFFSCREEN,
+        SOURCES.OFFSCREEN,
+        {
+            data: [element],
+            parentMetaData: {},
+            internal: true
+        },
+        ACTION_DOWNLOAD
+    )
+    actionDownload(msg)
+}
+
+async function downloadAllItems(req) {
+    console.log({ req });
+    const hydratedDownloads = getHydratedDownloads()
+    const internalUrls = Object.values(hydratedDownloads).map(value => {
+        return value.metadata.url
+    })
+    const msg = createMessage(
+        SOURCES.OFFSCREEN,
+        SOURCES.OFFSCREEN,
+        {
+            data: internalUrls,
+            parentMetaData: {},
+            internal: true
+        },
+        ACTION_DOWNLOAD
+    )
+    actionDownload(msg)
+}
 
 function deleteDownloadItem(req) {
     const key = req.PAYLOAD.key
     deleteDownload(key)
+}
+
+function cancelDownload(req) {
+    const key = req.PAYLOAD.key
+    const currentItem = getDownloadItem(key)
+    currentItem.status = DOWNLOAD_STATUS.CANCELLED
+    currentItem.metadata = {}
+    writeDownloadItem(key, currentItem)
 }
 
 function clearHistory() {
@@ -76,11 +121,9 @@ const downloadItem = async (element, parentMetaData) => {
         return null;
     } else if (!element.includes("blob:")) {
         return await getItemBlob(element, parentMetaData);
+    } else if (element.includes("chrome-extension:")) {
+        return await getItemBlob(element, parentMetaData, true);
     } else {
-        if (element.includes("chrome-extension:")) {
-            return await getItemBlob(element, parentMetaData, true);
-        }
-
         const status = createDownloadItem(
             null,
             null,
@@ -88,7 +131,6 @@ const downloadItem = async (element, parentMetaData) => {
             { error: "Cannot download blob urls from other domains." }
         )
         writeDownloadItem(element, status);
-
         return null
     }
 };
@@ -97,7 +139,6 @@ const removeOnBeforeSendHeaders = (headers) => {
     console.log("REMOVING LISTENER");
     chrome.webRequest.onBeforeSendHeaders.removeListener(headers);
 };
-
 
 const getItemBlob = async (element, parentMetaData, isReattempt) => {
     const downloadItem = getDownloadItem(element)
@@ -151,7 +192,6 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
             if (done) {
                 console.log("Finished", element, contentType)
                 if (!isReattempt) {
-                    const finalBlob = new Blob(dataArrays)
                     const statusItem = createDownloadItem(
                         contentLengthAsMb,
                         "100",
@@ -162,6 +202,10 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
                             previewUrl: smallerBlobUrl
                         }
                     )
+                    if (getDownloadItem(element).status === DOWNLOAD_STATUS.CANCELLED) {
+                        deleteDownload(element)
+                        return null
+                    }
                     writeDownloadItem(element, statusItem)
                 }
                 break;
@@ -188,6 +232,10 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
                         url: finalUrl
                     }
                 )
+                if (getDownloadItem(element).status === DOWNLOAD_STATUS.CANCELLED) {
+                    deleteDownload(element)
+                    return null
+                }
                 writeDownloadItem(element, statusItem)
             }
 

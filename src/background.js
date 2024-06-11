@@ -1,14 +1,17 @@
-import { createMessage, validateMessage } from './util';
+import { createMessage } from './util';
 import { SOURCES } from './sources';
 import { ACTION_DOWNLOAD, DOWNLOAD_ZIP_FILE } from "./commands"
 import { setupOffscreenDocument } from "./offscreen-controller"
 import { listenForMessages } from './messaging/message-handler';
 
 let activated = false;
+const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
 
 const referenceHandlers = {
   [DOWNLOAD_ZIP_FILE]: downloadZipFile
 }
+// INITIALIZE THE STARTUP STUFF
+setup()
 
 async function downloadZipFile(req) {
   const url = req.PAYLOAD.zipUrl
@@ -18,50 +21,7 @@ async function downloadZipFile(req) {
   });
 }
 
-const toggleHighlight = () => {
-  // gets the current tab and passes it directly into the toggle function
-  chrome.tabs.query({}, (tabs) => {
-    if (tabs.length > 0) {
-      toggle(tabs);
-    }
-  });
-};
-
-const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
-
-chrome.contextMenus.create({
-  id: CONTEXT_MENU_ITEM_ID,
-  title: "Toggle Content Saver",
-});
-setupOffscreenDocument("offscreen.html")
-
-chrome.commands.getAll().then(data => console.log(data))
-chrome.commands.onCommand.addListener(function (command) {
-  console.log({ command });
-  if (command == "toggle-highlight-content") {
-    toggleHighlight();
-  }
-});
-
-chrome.contextMenus.onClicked.addListener((event => {
-  console.log(event)
-  if (event.menuItemId == CONTEXT_MENU_ITEM_ID) {
-    toggleHighlight()
-  }
-}))
-
-
-const addOnBeforeSendHeaders = (urls, headers) => {
-  console.log(urls);
-  console.log("ADDING HEADERS", { urls, headers });
-  chrome.webRequest.onBeforeSendHeaders.addListener(
-    headers,
-    { urls: urls.filter(it => it != null && !it.includes("blob:")) },
-    ["requestHeaders", "extraHeaders"]
-  );
-};
-
-listenForMessages(SOURCES.BACKGROUND, referenceHandlers, async (request, sender) => {
+listenForMessages(SOURCES.BACKGROUND, referenceHandlers, false, async (request, sender) => {
   if (request == "DEACTIVATE") {
     activated = false;
     chrome.tabs.query({}, (tabs) => {
@@ -77,7 +37,26 @@ listenForMessages(SOURCES.BACKGROUND, referenceHandlers, async (request, sender)
   }
 })
 
-async function handleDownloadRequest(source, rawData, cookie, internal = false) {
+const toggleHighlight = () => {
+  // gets the current tab and passes it directly into the toggle function
+  chrome.tabs.query({}, (tabs) => {
+    if (tabs.length > 0) {
+      toggleHighlightForTab(tabs);
+    }
+  });
+};
+
+const addOnBeforeSendHeaders = (urls, headers) => {
+  console.log(urls);
+  console.log("ADDING HEADERS", { urls, headers });
+  chrome.webRequest.onBeforeSendHeaders.addListener(
+    headers,
+    { urls: urls.filter(it => it != null && !it.includes("blob:")) },
+    ["requestHeaders", "extraHeaders"]
+  );
+};
+
+async function handleDownloadRequest(source, rawData, cookie) {
   let parentMetaData = {}
   let referrerHeader = null
   let data = new Set(rawData);
@@ -93,15 +72,15 @@ async function handleDownloadRequest(source, rawData, cookie, internal = false) 
       cookie
     };
   }
-  const offscreenmsg = createMessage(
+  const actionDownloadMessage = createMessage(
     SOURCES.BACKGROUND,
     SOURCES.OFFSCREEN,
-    { data, source, cookie, internal, parentMetaData, referrerHeader },
+    { data, source, cookie, internal: false, parentMetaData, referrerHeader },
     ACTION_DOWNLOAD
   )
-  console.log("Sending message to offscreen page for request...", offscreenmsg);
-  chrome.runtime.sendMessage(offscreenmsg)
-  console.log("Sent message to offscreen page for request...", offscreenmsg);
+  console.log("Sending message to offscreen page for request...", actionDownloadMessage);
+  chrome.runtime.sendMessage(actionDownloadMessage)
+  console.log("Sent message to offscreen page for request...", actionDownloadMessage);
 }
 
 function generateCookieFromUrl(source) {
@@ -142,7 +121,7 @@ const generateHeadersForSource = (source, cookie) => {
   };
 }
 
-const toggle = (tabs) => {
+const toggleHighlightForTab = (tabs) => {
   tabs.forEach((tab) => {
     if (activated) {
       chrome.tabs.sendMessage(tab.id, "DEACTIVATE_CONTENT_HIGHLIGHT");
@@ -152,3 +131,21 @@ const toggle = (tabs) => {
   });
   activated = !activated;
 };
+
+function setup() {
+  setupOffscreenDocument("offscreen.html")
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_ITEM_ID,
+    title: "Toggle Content Saver",
+  });
+  chrome.contextMenus.onClicked.addListener((event => {
+    if (event.menuItemId == CONTEXT_MENU_ITEM_ID) {
+      toggleHighlight()
+    }
+  }))
+  chrome.commands.onCommand.addListener(function (command) {
+    if (command == "toggle-highlight-content") {
+      toggleHighlight();
+    }
+  });
+}

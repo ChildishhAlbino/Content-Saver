@@ -2,6 +2,7 @@ export const DOWNLOAD_STATUS = Object.freeze({
     PENDING: 'PENDING',
     SUCCESS: 'SUCCESS',
     ERROR: 'ERROR',
+    CANCELLED: 'CANCELLED'
 })
 
 export function createDownloadItem(
