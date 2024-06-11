@@ -1,6 +1,6 @@
 import { createMessage } from './util';
 import { SOURCES } from './sources';
-import { ACTION_DOWNLOAD, DOWNLOAD_ZIP_FILE } from "./commands"
+import { ACTION_DOWNLOAD, DOWNLOAD_ZIP_FILE, HANDLE_STORAGE_UPDATE } from "./commands"
 import { setupOffscreenDocument } from "./offscreen-controller"
 import { listenForMessages } from './messaging/message-handler';
 
@@ -9,7 +9,8 @@ let SETUP_COMPLETE = false;
 const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
 
 const referenceHandlers = {
-  [DOWNLOAD_ZIP_FILE]: downloadZipFile
+  [DOWNLOAD_ZIP_FILE]: downloadZipFile,
+  [HANDLE_STORAGE_UPDATE]: handleStorageUpdate
 }
 // INITIALIZE THE STARTUP STUFF
 setup()
@@ -20,6 +21,18 @@ async function downloadZipFile(req) {
   chrome.downloads.download({
     url,
   });
+}
+
+function handleStorageUpdate(req) {
+  const { numFiles } = req.PAYLOAD
+  console.log({ numFiles });
+  if (numFiles > 0) {
+    chrome.action.setBadgeText({ text: `${numFiles}` });
+  } else {
+    chrome.action.setBadgeText({
+      text: ""
+    })
+  }
 }
 
 listenForMessages(SOURCES.BACKGROUND, referenceHandlers, false, async (request, sender) => {

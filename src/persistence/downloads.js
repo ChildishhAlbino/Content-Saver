@@ -1,4 +1,7 @@
 import { write, get, clear } from "./store"
+import { HANDLE_STORAGE_UPDATE } from "../commands";
+import { SOURCES } from "../sources";
+import { createMessage } from "../util";
 
 export const writeDownloadItem = (key, status) => {
     const existing = get(key)
@@ -33,6 +36,7 @@ const newItem = (itemId) => {
 
 const writeDownloads = (downloads) => {
     write("downloads", JSON.stringify(downloads));
+    sendStoreUpdateMessage()
 }
 
 export const deleteDownload = (key) => {
@@ -45,4 +49,13 @@ export const clearAllDownloads = () => {
     const downloads = getAllDownloads()
     writeDownloads([])
     downloads.forEach(deleteDownload)
+}
+
+function sendStoreUpdateMessage() {
+    chrome.runtime.sendMessage(createMessage(
+        SOURCES.OFFSCREEN,
+        SOURCES.BACKGROUND,
+        { numFiles: getAllDownloads().length },
+        HANDLE_STORAGE_UPDATE
+    ))
 }

@@ -7,10 +7,11 @@ import {
     deleteDownload,
     clearAllDownloads,
     getDownloadItem,
-    getHydratedDownloads
+    getHydratedDownloads,
+    getAllDownloads
 } from './persistence/downloads'
 import { listenForMessages } from "./messaging/message-handler";
-import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL } from "./commands";
+import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
 import { createMessage } from "./util";
 
 const historyClearTime = 5 * 60
@@ -25,6 +26,16 @@ const referenceHandlers = {
     [DOWNLOAD_ALL]: downloadAllItems,
     [CANCEL_DOWNLOAD]: cancelDownload
 }
+
+window.addEventListener("DOMContentLoaded", () => {
+    console.log("LOADED")
+    chrome.runtime.sendMessage(createMessage(
+        SOURCES.OFFSCREEN,
+        SOURCES.BACKGROUND,
+        { numFiles: getAllDownloads().length },
+        HANDLE_STORAGE_UPDATE
+    ))
+})
 
 listenForMessages(SOURCES.OFFSCREEN, referenceHandlers, false)
 
@@ -195,7 +206,8 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
                             previewUrl: smallerBlobUrl
                         }
                     )
-                    if (getDownloadItem(element).status === DOWNLOAD_STATUS.CANCELLED) {
+                    const currentItem = getDownloadItem(element)
+                    if (currentItem && currentItem.status === DOWNLOAD_STATUS.CANCELLED) {
                         deleteDownload(element)
                         return null
                     }
@@ -225,7 +237,8 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
                         url: finalUrl
                     }
                 )
-                if (getDownloadItem(element).status === DOWNLOAD_STATUS.CANCELLED) {
+                const currentItem = getDownloadItem(element)
+                if (currentItem && currentItem.status === DOWNLOAD_STATUS.CANCELLED) {
                     deleteDownload(element)
                     return null
                 }
@@ -248,6 +261,4 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
         }
         return null;
     }
-
 };
-

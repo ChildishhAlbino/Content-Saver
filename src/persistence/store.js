@@ -35,5 +35,4 @@ export const clear = (key) => {
     } else {
         clearAll()
     }
-
 }
