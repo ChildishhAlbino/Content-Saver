@@ -29,7 +29,8 @@ const referenceHandlers = {
 listenForMessages(SOURCES.OFFSCREEN, referenceHandlers, false)
 
 async function actionDownload(req) {
-    const { data, parentMetaData, referrerHeader, internal } = req.PAYLOAD
+    const { data, internal } = req.PAYLOAD
+    let parentMetaData = {}
     console.log("RECEIVED DATA:", data);
     data.forEach(item => {
         const status = createDownloadItem(
@@ -56,9 +57,6 @@ async function actionDownload(req) {
             });
         } else {
             console.log("List of response was empty.");
-        }
-        if (referrerHeader) {
-            removeOnBeforeSendHeaders(referrerHeader);
         }
     });
 }
@@ -133,11 +131,6 @@ const downloadItem = async (element, parentMetaData) => {
         writeDownloadItem(element, status);
         return null
     }
-};
-
-const removeOnBeforeSendHeaders = (headers) => {
-    console.log("REMOVING LISTENER");
-    chrome.webRequest.onBeforeSendHeaders.removeListener(headers);
 };
 
 const getItemBlob = async (element, parentMetaData, isReattempt) => {
@@ -258,33 +251,3 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
 
 };
 
-async function convertBlobToDataUrl(blob) {
-    const base64String = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onabort = () => reject(reader.error)
-        reader.readAsDataURL(blob);
-    });
-    return `data:application/octet-stream;base64,${base64String}`
-}
-
-const generateHeadersForSource = (source, cookie) => {
-    return (details) => {
-        details.requestHeaders.push(
-            {
-                name: "Referer",
-                value: source,
-            }
-        );
-        if (cookie) {
-            details.requestHeaders.push(
-                {
-                    name: "cookie",
-                    value: cookie,
-                }
-            );
-        }
-        console.log(source, details.requestHeaders)
-        return { requestHeaders: details.requestHeaders };
-    };
-}

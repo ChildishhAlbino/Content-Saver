@@ -5,6 +5,7 @@ import { setupOffscreenDocument } from "./offscreen-controller"
 import { listenForMessages } from './messaging/message-handler';
 
 let activated = false;
+let SETUP_COMPLETE = false;
 const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
 
 const referenceHandlers = {
@@ -46,36 +47,16 @@ const toggleHighlight = () => {
   });
 };
 
-const addOnBeforeSendHeaders = (urls, headers) => {
-  console.log(urls);
-  console.log("ADDING HEADERS", { urls, headers });
-  chrome.webRequest.onBeforeSendHeaders.addListener(
-    headers,
-    { urls: urls.filter(it => it != null && !it.includes("blob:")) },
-    ["requestHeaders", "extraHeaders"]
-  );
-};
+
 
 async function handleDownloadRequest(source, rawData, cookie) {
-  let parentMetaData = {}
-  let referrerHeader = null
   let data = new Set(rawData);
   data = Array.from(data);
   console.log(data);
-  if (source != null) {
-    const generatedCookie = await generateCookieFromUrl(source)
-    console.log({ generatedCookie });
-    referrerHeader = generateHeadersForSource(source, generatedCookie);
-    addOnBeforeSendHeaders(data, referrerHeader);
-    parentMetaData = {
-      source,
-      cookie
-    };
-  }
   const actionDownloadMessage = createMessage(
     SOURCES.BACKGROUND,
     SOURCES.OFFSCREEN,
-    { data, source, cookie, internal: false, parentMetaData, referrerHeader },
+    { data, source, cookie, internal: false },
     ACTION_DOWNLOAD
   )
   console.log("Sending message to offscreen page for request...", actionDownloadMessage);
@@ -83,9 +64,11 @@ async function handleDownloadRequest(source, rawData, cookie) {
   console.log("Sent message to offscreen page for request...", actionDownloadMessage);
 }
 
+// ZOMBIE CODE - only revive if needed for obscure use case
 function generateCookieFromUrl(source) {
   return new Promise((resolve, reject) => {
     try {
+      console.log("Getting cookies for", { source });
       chrome.cookies.getAll({ url: source }, (cookies) => {
         const mapped = cookies.map(cookie => {
           return `${cookie.name}=${cookie.value}`
@@ -100,27 +83,6 @@ function generateCookieFromUrl(source) {
   })
 }
 
-const generateHeadersForSource = (source, cookie) => {
-  return (details) => {
-    details.requestHeaders.push(
-      {
-        name: "Referer",
-        value: source,
-      }
-    );
-    if (cookie) {
-      details.requestHeaders.push(
-        {
-          name: "cookie",
-          value: cookie,
-        }
-      );
-    }
-    console.log(source, details.requestHeaders)
-    return { requestHeaders: details.requestHeaders };
-  };
-}
-
 const toggleHighlightForTab = (tabs) => {
   tabs.forEach((tab) => {
     if (activated) {
@@ -133,19 +95,22 @@ const toggleHighlightForTab = (tabs) => {
 };
 
 function setup() {
-  setupOffscreenDocument("offscreen.html")
-  chrome.contextMenus.create({
-    id: CONTEXT_MENU_ITEM_ID,
-    title: "Toggle Content Saver",
-  });
-  chrome.contextMenus.onClicked.addListener((event => {
-    if (event.menuItemId == CONTEXT_MENU_ITEM_ID) {
-      toggleHighlight()
-    }
-  }))
-  chrome.commands.onCommand.addListener(function (command) {
-    if (command == "toggle-highlight-content") {
-      toggleHighlight();
-    }
-  });
+  if (!SETUP_COMPLETE) {
+    setupOffscreenDocument("offscreen.html")
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_ITEM_ID,
+      title: "Toggle Content Saver",
+    });
+    chrome.contextMenus.onClicked.addListener((event => {
+      if (event.menuItemId == CONTEXT_MENU_ITEM_ID) {
+        toggleHighlight()
+      }
+    }))
+    chrome.commands.onCommand.addListener(function (command) {
+      if (command == "toggle-highlight-content") {
+        toggleHighlight();
+      }
+    });
+    SETUP_COMPLETE = true;
+  }
 }

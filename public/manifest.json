@@ -1,6 +1,6 @@
 {
     "name": "Content Saver",
-    "version": "2.1",
+    "version": "2.1.1",
     "manifest_version": 3,
     "action": {
         "default_popup": "popup.html",
