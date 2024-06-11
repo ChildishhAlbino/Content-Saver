@@ -33,7 +33,8 @@
         "contextMenus",
         "cookies",
         "webRequest",
-        "storage"
+        "storage",
+        "offscreen"
     ],
     "commands": {
         "toggle-highlight-content": {

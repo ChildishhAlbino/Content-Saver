@@ -1,5 +1,8 @@
 import superBase64 from 'super-base-64';
 import { v5 as uuidv5 } from 'uuid';
+import { createMessage } from './util';
+import { SOURCES } from './sources';
+import { DOWNLOAD_ZIP_FILE } from './commands';
 const JSZip = require("jszip");
 const mime = require('mime-types')
 const stripBase64 = (rawB64) => {
@@ -41,13 +44,14 @@ export async function zipResponses(responses) {
         await zipFile(response, zip)
     })
     await Promise.all(promises)
-    const zipDataB64 = await zip.generateAsync({ type: "base64" })
-
-    console.log({ content: zipDataB64 });
-    const url = `data:application/octet-stream;base64,${zipDataB64}`
-    console.log({ url })
-    chrome.downloads.download({
-        url,
-        filename: `${uuidv5(zipDataB64, NAMESPACE_URL)}.zip`
-    });
+    const content = await zip.generateAsync({ type: "blob" })
+    const url = URL.createObjectURL(content)
+    console.log("ZIP URL", { url })
+    const downloadZipMsg = createMessage(
+        SOURCES.OFFSCREEN,
+        SOURCES.BACKGROUND,
+        { zipUrl: url },
+        DOWNLOAD_ZIP_FILE
+    )
+    chrome.runtime.sendMessage(downloadZipMsg)
 }

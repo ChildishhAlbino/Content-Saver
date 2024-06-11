@@ -47,8 +47,8 @@ class Popup extends React.Component {
         chrome.runtime.sendMessage(message)
     }
 
-    async postReceiveMessage() {
-        const files = await this.getFiles()
+    postReceiveMessage() {
+        const files = this.getFiles()
         console.log(files)
         this.setState({ files })
     }
@@ -56,7 +56,7 @@ class Popup extends React.Component {
     downloadAllFiles() {
         this.sendMessage(createMessage(
             popupSource,
-            SOURCES.BACKGROUND,
+            SOURCES.OFFSCREEN,
             {},
             DOWNLOAD_ALL
         ))
@@ -65,7 +65,7 @@ class Popup extends React.Component {
     downloadItem(element) {
         this.sendMessage(createMessage(
             popupSource,
-            SOURCES.BACKGROUND,
+            SOURCES.OFFSCREEN,
             {
                 element
             },
@@ -74,11 +74,11 @@ class Popup extends React.Component {
     }
 
     toggleThumbnails() {
-        // this.setState({ hideThumbnails: !this.state.hideThumbnails })
+        this.setState({ hideThumbnails: !this.state.hideThumbnails })
     }
 
-    async dataUpdate() {
-        let files = await this.getFiles()
+    dataUpdate() {
+        let files = this.getFiles()
         this.setState({ files })
     }
 
@@ -91,7 +91,6 @@ class Popup extends React.Component {
             }
         }
         )
-        chrome.storage.onChanged.addListener(this.dataUpdate)
         window.addEventListener('storage', this.dataUpdate)
         this.dataUpdate()
         console.log("MOUNTED")
@@ -99,19 +98,18 @@ class Popup extends React.Component {
 
     componentWillUnmount() {
         console.log("UNMOUNTED")
-        chrome.storage.onChanged.removeListener(this.dataUpdate)
         window.removeEventListener('storage', this.dataUpdate)
     }
 
-    async getFiles() {
-        const files = await getHydratedDownloads()
+    getFiles() {
+        const files = getHydratedDownloads()
         return Object.entries(files).reverse()
     }
 
     deleteItem(key) {
         this.sendMessage(createMessage(
             popupSource,
-            SOURCES.BACKGROUND,
+            SOURCES.OFFSCREEN,
             { key },
             DELETE_DOWNLOAD_ITEM
         ))
@@ -125,7 +123,8 @@ class Popup extends React.Component {
         const onClick = () => {
             this.setState({ selectedPage: text })
         }
-        const numFiles = this.state.files.filter(([_, details]) => {
+        const files = this.getFiles()
+        const numFiles = files.filter(([_, details]) => {
             const { status } = details
             return this.shouldShowFile(status, text)
         }).length
@@ -157,7 +156,6 @@ class Popup extends React.Component {
 
     clearPage() {
         const { files } = this.state
-        console.log({ files });
         const filesToBeDeleted = files.filter(([_, details]) => {
             const { status } = details
             return this.shouldShowFile(status)
@@ -188,16 +186,14 @@ class Popup extends React.Component {
                 <div className="file-wrapper">
                     {
                         files.map(([element, details], index) => {
-                            console.log({ element, details });
-                            const parsedDetails = JSON.parse(details)
-                            const { status } = parsedDetails
+                            const { status } = details
                             const shouldShowFile = this.shouldShowFile(status)
                             if (shouldShowFile) {
                                 return (
                                     <DownloadItem
                                         key={element}
                                         deleteItem={this.deleteItem}
-                                        details={parsedDetails}
+                                        details={details}
                                         element={element}
                                         hideThumbnails={this.state.hideThumbnails}
                                         downloadItem={this.downloadItem}
