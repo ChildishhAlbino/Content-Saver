@@ -13,6 +13,7 @@ import {
   disableATags,
   flipSoftToggle,
   isSoftToggle,
+  isAllowedButton,
 } from "./control";
 import { createMutationObserver, observe } from "./observer";
 
@@ -54,8 +55,12 @@ function clickOnContent(event) {
     targetTagName: target.tagName,
     csTargets: target.contentSaverTargets,
   });
-  const specialClick = isSpecialClick(event);
-  if (target.contentSaverTargets && !specialClick) {
+  const clickIsSpecial = isSpecialClick(event);
+  const buttonIsAllowed = isAllowedButton(event)
+
+
+
+  if (target.contentSaverTargets && buttonIsAllowed) {
     event.preventDefault();
     event.stopPropagation();
     const filtered = getContentFromPoint(clientX, clientY);

@@ -20,6 +20,17 @@ export const preventClicks = (event) => {
     }
 };
 
+function getAllowedButton() {
+    return SOFT_TOGGLE ? 2 : 0
+}
+
+export function isAllowedButton(event) {
+    const allowedButton = getAllowedButton()
+    const buttonIsAllowedButton = event.button === allowedButton
+    console.log({ allowedButton, b: event.button, buttonIsAllowedButton });
+    return buttonIsAllowedButton
+}
+
 export function setupPreventClicks(element) {
     console.log("Preventing clicks on element...", { element });
     element.addEventListener("click", preventClicks);
