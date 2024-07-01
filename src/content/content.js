@@ -1,3 +1,6 @@
+import { REQUEST_DOWNLOAD } from "../commands";
+import { SOURCES } from "../sources";
+import { createMessage } from "../util";
 import {
   SOFT_TOGGLE_KEYCODE,
   TOGGLED_OFF_HIGHLIGHT_CLASS_NAME,
@@ -6,9 +9,7 @@ import {
   SELECTED_CLASS_NAME,
 } from "./constants";
 import {
-  SOFT_TOGGLE,
   EVENT_TYPE,
-  isSpecialClick,
   preventClicks,
   disableATags,
   flipSoftToggle,
@@ -55,11 +56,7 @@ function clickOnContent(event) {
     targetTagName: target.tagName,
     csTargets: target.contentSaverTargets,
   });
-  const clickIsSpecial = isSpecialClick(event);
   const buttonIsAllowed = isAllowedButton(event)
-
-
-
   if (target.contentSaverTargets && buttonIsAllowed) {
     event.preventDefault();
     event.stopPropagation();
@@ -378,14 +375,16 @@ const deactivate = () => {
     " capture-cursor",
     ""
   );
-  const sources = getMediaSourcesFromOverlays();
+  const data = getMediaSourcesFromOverlays();
   console.log({ cookie: document.cookie });
-  chrome.runtime.sendMessage({
-    message: "DATA",
-    source: `${window.location.protocol}//${window.location.hostname}/`,
-    data: sources,
-    cookie: document.cookie,
-  });
+  const source = `${window.location.protocol}//${window.location.hostname}/`
+  var message = createMessage(
+    SOURCES.CONTENT,
+    SOURCES.BACKGROUND,
+    { data, source, internal: false, cookie: document.cookie, },
+    REQUEST_DOWNLOAD
+  )
+  chrome.runtime.sendMessage(message);
   overlays = [];
   clearSelectedCSS();
   clearHoverCSS();

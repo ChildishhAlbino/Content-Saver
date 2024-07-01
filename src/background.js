@@ -1,6 +1,6 @@
 import { createMessage } from './util';
 import { SOURCES } from './sources';
-import { ACTION_DOWNLOAD, DOWNLOAD_ZIP_FILE, HANDLE_STORAGE_UPDATE } from "./commands"
+import { ACTION_DOWNLOAD, DOWNLOAD_ZIP_FILE, HANDLE_STORAGE_UPDATE, REQUEST_DOWNLOAD } from "./commands"
 import { setupOffscreenDocument } from "./offscreen-controller"
 import { listenForMessages } from './messaging/message-handler';
 
@@ -10,7 +10,8 @@ const CONTEXT_MENU_ITEM_ID = "content_saver_context_root"
 
 const referenceHandlers = {
   [DOWNLOAD_ZIP_FILE]: downloadZipFile,
-  [HANDLE_STORAGE_UPDATE]: handleStorageUpdate
+  [HANDLE_STORAGE_UPDATE]: handleStorageUpdate,
+  [REQUEST_DOWNLOAD]: handleDownloadRequest
 }
 // INITIALIZE THE STARTUP STUFF
 setup()
@@ -33,6 +34,21 @@ function handleStorageUpdate(req) {
       text: ""
     })
   }
+}
+
+async function handleDownloadRequest(req) {
+  const { source, data, cookie } = req.PAYLOAD
+  const unique = [...new Set(data)];
+  console.log(unique);
+  const actionDownloadMessage = createMessage(
+    SOURCES.BACKGROUND,
+    SOURCES.OFFSCREEN,
+    { data: unique, source, cookie, internal: false },
+    ACTION_DOWNLOAD
+  )
+  console.log("Sending message to offscreen page for request...", actionDownloadMessage);
+  chrome.runtime.sendMessage(actionDownloadMessage)
+  console.log("Sent message to offscreen page for request...", actionDownloadMessage);
 }
 
 listenForMessages(SOURCES.BACKGROUND, referenceHandlers, false, async (request, sender) => {
@@ -60,52 +76,16 @@ const toggleHighlight = () => {
   });
 };
 
-
-
-async function handleDownloadRequest(source, rawData, cookie) {
-  let data = new Set(rawData);
-  data = Array.from(data);
-  console.log(data);
-  const actionDownloadMessage = createMessage(
-    SOURCES.BACKGROUND,
-    SOURCES.OFFSCREEN,
-    { data, source, cookie, internal: false },
-    ACTION_DOWNLOAD
-  )
-  console.log("Sending message to offscreen page for request...", actionDownloadMessage);
-  chrome.runtime.sendMessage(actionDownloadMessage)
-  console.log("Sent message to offscreen page for request...", actionDownloadMessage);
-}
-
-// ZOMBIE CODE - only revive if needed for obscure use case
-function generateCookieFromUrl(source) {
-  return new Promise((resolve, reject) => {
-    try {
-      console.log("Getting cookies for", { source });
-      chrome.cookies.getAll({ url: source }, (cookies) => {
-        const mapped = cookies.map(cookie => {
-          return `${cookie.name}=${cookie.value}`
-        })
-        const joined = mapped.join("; ")
-        console.log({ cookies, mapped, joined });
-        return resolve(joined)
-      })
-    } catch (err) {
-      reject(err)
-    }
-  })
-}
-
 const toggleHighlightForTab = (tabs) => {
   tabs.forEach((tab) => {
-    if (activated) {
-      chrome.tabs.sendMessage(tab.id, "DEACTIVATE_CONTENT_HIGHLIGHT");
-    } else {
-      chrome.tabs.sendMessage(tab.id, "ACTIVATE_CONTENT_HIGHLIGHT");
-    }
+    setHighlightForTab(tab, activated ? "DEACTIVATE_CONTENT_HIGHLIGHT" : "ACTIVATE_CONTENT_HIGHLIGHT")
   });
   activated = !activated;
 };
+
+function setHighlightForTab(tab, value) {
+  chrome.tabs.sendMessage(tab.id, value);
+}
 
 function setup() {
   if (!SETUP_COMPLETE) {
