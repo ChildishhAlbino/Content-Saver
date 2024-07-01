@@ -13,7 +13,7 @@ export const preventClicks = (event) => {
     let button = elementsFromP.find((element) => {
         return element.tagName === "BUTTON";
     });
-    if (!button && !isAllowedButton(event)) {
+    if (!button && !isSpecialClick(event)) {
         console.log("prevented clicks");
         event.preventDefault();
         event.stopPropagation();
