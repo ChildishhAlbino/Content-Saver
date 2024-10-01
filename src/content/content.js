@@ -172,7 +172,18 @@ const isSelectedElement = (element) => {
   const childOfGrandparentClass = grandparent.querySelector(
     toSelector(SELECTED_CLASS_NAME)
   );
-  return childOfParentClass || childOfGrandparentClass;
+  console.log({ element, grandparent, childOfGrandparentClass, childOfParentClass });
+  const selectedUrls = getMediaSourcesFromHoveredElements([element])
+  const matchingSaverTags = childOfGrandparentClass ? childOfGrandparentClass.contentSaverTargets : []
+  const joined = [...selectedUrls, ...matchingSaverTags]
+  const totalItems = joined.length
+
+  const uniqueItems = [...(new Set(joined))]
+  const numUnique = uniqueItems.length
+
+  console.log({ selectedUrls, matchingSaverTags, totalItems, numUnique });
+  // this fixes the issue where some sliders only allowed 1 element to be selected
+  return childOfParentClass || (childOfGrandparentClass && (numUnique == selectedUrls))
 };
 
 const selectContent = (filtered) => {
