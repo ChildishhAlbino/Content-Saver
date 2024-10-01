@@ -53,6 +53,7 @@ document.addEventListener("keydown", (event) => {
 function clickOnContent(event) {
   const { target, clientX, clientY } = event;
   console.log({
+    target,
     targetTagName: target.tagName,
     csTargets: target.contentSaverTargets,
   });
@@ -100,17 +101,16 @@ const getContentFromPoint = (x, y) => {
   });
   if (!button) {
     let filtered = elementsFromP.filter((element) => {
-      switch (element.tagName) {
-        case "VIDEO":
-          return true;
-        case "IMG":
-          return true;
-        case "DIV":
-          return !!element.style.backgroundImage;
-        default:
-          return false;
-      }
+      return elementHasValidContent(element)
     });
+    console.log("parent search", { filtered });
+    if (filtered.length == 0) {
+      const children = [...new Set(elementsFromP.map(element => [...element.children]).flat(Infinity))]
+      console.log("Searching through child elements", { children });
+      filtered = children.filter(element => elementHasValidContent(element))
+    }
+    console.log("full search", { filtered });
+
     var firsts = [
       filtered.find((element) => {
         return element.tagName == "VIDEO";
@@ -127,8 +127,23 @@ const getContentFromPoint = (x, y) => {
     });
     return filtered;
   }
+  console.log("User clicked on a button", { button });
   return null;
 };
+
+
+function elementHasValidContent(element) {
+  switch (element.tagName) {
+    case "VIDEO":
+      return true;
+    case "IMG":
+      return true;
+    case "DIV":
+      return !!element.style.backgroundImage;
+    default:
+      return false;
+  }
+}
 
 const hoverContent = (event) => {
   cursorX = event.clientX;
