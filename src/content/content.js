@@ -105,11 +105,22 @@ const getContentFromPoint = (x, y) => {
     });
     console.log("parent search", { filtered });
     if (filtered.length == 0) {
-      const children = [...new Set(elementsFromP.map(element => [...element.children]).flat(Infinity))]
-      console.log("Searching through child elements", { children });
-      filtered = children.filter(element => elementHasValidContent(element))
+      console.log("Searching through child elements");
+      elementloop: for (const element of elementsFromP) {
+        const children = element.children
+        for (const child of children) {
+          const childHasValidContent = elementHasValidContent(child)
+          if (childHasValidContent) {
+            filtered = [child]
+            break elementloop;
+          }
+        }
+      }
+      // const children = [...new Set(elementsFromP.map(element => [...element.children]).flat(Infinity))]
+
+      // filtered = children.filter(element => elementHasValidContent(element))
     }
-    console.log("full search", { filtered });
+    console.log("full search", { filtered, x, y });
 
     var firsts = [
       filtered.find((element) => {
