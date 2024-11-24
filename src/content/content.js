@@ -166,23 +166,23 @@ const hoverContent = (event) => {
     );
     console.log({ filteredSources });
     clearHoverCSS();
-    filtered.forEach((element) => {
-      const parent = element.parentElement;
+    filtered.forEach((targetElement) => {
+      const parent = targetElement.parentElement;
       const childOfClass = parent.querySelector(
         toSelector(currentHighlightClassName)
       );
       if (!childOfClass) {
         parent.addEventListener("contextmenu", preventContextMenu);
-        let div = document.createElement("span");
-        div.className += currentHighlightClassName;
-        div.style.height = `${element.offsetHeight}px`;
-        div.style.width = `${element.offsetWidth}px`;
-        div.contentSaverTargets = filteredSources;
-        div.clearListeners = () => {
+        let overlayDiv = document.createElement("span");
+        overlayDiv.className += currentHighlightClassName;
+        overlayDiv.style.height = `${targetElement.offsetHeight}px`;
+        overlayDiv.style.width = `${targetElement.offsetWidth}px`;
+        overlayDiv.contentSaverTargets = filteredSources;
+        overlayDiv.clearListeners = () => {
           parent.removeEventListener("contextmenu", preventContextMenu);
         };
-        console.log({ div, t: div.contentSaverTargets });
-        parent.appendChild(div);
+        console.log({ div: overlayDiv, t: overlayDiv.contentSaverTargets });
+        parent.insertBefore(overlayDiv, targetElement);
       }
     });
   }
@@ -250,19 +250,20 @@ const addSelectedOverlay = (selected) => {
     return element != null;
   });
 
-  const element = filtered[0];
-  if (element) {
+  const targetElement = filtered[0];
+  if (targetElement) {
     const filteredSources = getMediaSourcesFromHoveredElements(
       filtered.filter((item) => !!item)
     );
-    const parent = element.parentElement;
-    let div = document.createElement("span");
-    div.className += SELECTED_CLASS_NAME;
-    div.contentSaverTargets = filteredSources;
-    div.style.height = `${element.offsetHeight}px`;
-    div.style.width = `${element.offsetWidth}px`;
-    parent.appendChild(div);
-    overlays.push(div);
+    const parent = targetElement.parentElement;
+    let overlayElement = document.createElement("span");
+    overlayElement.className += SELECTED_CLASS_NAME;
+    overlayElement.contentSaverTargets = filteredSources;
+    overlayElement.style.height = `${targetElement.offsetHeight}px`;
+    overlayElement.style.width = `${targetElement.offsetWidth}px`;
+    // parent.appendChild(div);
+    parent.insertBefore(overlayElement, targetElement)
+    overlays.push(overlayElement);
     console.log("overlays", overlays.length);
   }
 };
@@ -371,7 +372,16 @@ const getMediaSourcesFromHoveredElements = (selectedElements) => {
       }
     });
     let flat = srcs.flat().filter((item) => item !== "");
-    return flat;
+
+    // replace .md.* urls with source file
+    const replaced = flat.map(src => {
+      if (!src) {
+        return src
+      }
+      return src.replace(/.md(.*)/g, "$1")
+    })
+    console.log({ srcs: replaced })
+    return replaced;
   }
 };
 

@@ -1,26 +1,32 @@
 .CONTENT_SAVER_SELECTED {
   position: absolute;
-  top: 0;
-  left: 0;
-  background-color: rgba(0, 26, 255, 0.49);
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(0, 26, 255, 0.55);
   z-index: 998;
   cursor: pointer;
 }
 
 .CONTENT_SAVER_HIGHLIGHT {
   position: absolute;
-  top: 0;
-  left: 0;
-  background-color: rgba(114, 0, 214, 0.402);
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(248, 74, 216, 0.40);
   z-index: 999;
   cursor: pointer;
 }
 
 .CONTENT_SAVER_INACTIVE_HIGHLIGHT {
   position: absolute;
-  top: 0;
-  left: 0;
-  background-color: rgba(238, 180, 19, 0.35);
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(66, 222, 84, 0.35);
   z-index: 999;
   cursor: pointer;
 }
