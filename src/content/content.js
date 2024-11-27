@@ -9,6 +9,7 @@ import {
   SELECTED_CLASS_NAME,
   INVALID_SELECTED_CLASS_NAME,
   PARTIAL_INVALID_SELECTED_CLASS_NAME,
+  DETAIL_CLASS_NAME,
 } from "./constants";
 import {
   EVENT_TYPE,
@@ -256,21 +257,30 @@ const addSelectedOverlay = (selected) => {
   if (targetElement) {
     const filteredSources = getMediaSourcesFromHoveredElements(
       filtered.filter((item) => !!item)
-    );
+    ).filter(item => !!item)
+    const numTotal = filteredSources.length
+    const detailElement = document.createElement("p")
+    detailElement.className = DETAIL_CLASS_NAME
+    detailElement.innerText = `${numTotal}`
 
     const blobUrls = filteredSources.filter(source => source.includes("blob:"))
+    const numInvalid = blobUrls.length
+    const numValid = numTotal - numInvalid
     let className = SELECTED_CLASS_NAME
 
-    if (blobUrls.length == filteredSources.length) {
+    if (numInvalid == numTotal) {
       className = INVALID_SELECTED_CLASS_NAME
-    } else if (blobUrls.length != 0) {
+      detailElement.innerText = `0`
+    } else if (numInvalid != 0) {
       className = PARTIAL_INVALID_SELECTED_CLASS_NAME
+      detailElement.innerText = `${numValid}V + ${numInvalid}I`
     }
 
-    console.log({ className });
+    console.log({ blobUrls, filteredSources, className });
 
     const parent = targetElement.parentElement;
     let overlayElement = document.createElement("span");
+    overlayElement.appendChild(detailElement)
     overlayElement.className += className;
     overlayElement.contentSaverTargets = filteredSources;
     overlayElement.style.height = `${targetElement.offsetHeight}px`;

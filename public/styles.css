@@ -1,14 +1,3 @@
-.CONTENT_SAVER_SELECTED {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(0, 26, 255, 0.55);
-  z-index: 998;
-  cursor: pointer;
-}
-
 .CONTENT_SAVER_HIGHLIGHT {
   position: absolute;
   top: anchor(top);
@@ -18,6 +7,33 @@
   background-color: rgba(248, 74, 216, 0.40);
   z-index: 999;
   cursor: pointer;
+  display: inline-flex;
+}
+
+.CONTENT_SAVER_INACTIVE_HIGHLIGHT {
+  position: absolute;
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(66, 222, 84, 0.35);
+  z-index: 999;
+  cursor: pointer;
+  display: inline-flex;
+}
+
+.CONTENT_SAVER_SELECTED {
+  position: absolute;
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(0, 26, 255, 0.55);
+  z-index: 998;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .CONTENT_SAVER_INVALID_SELECTED {
@@ -29,6 +45,9 @@
   background-color: rgba(123, 25, 0, 0.75);
   z-index: 999;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;  
 }
 
 .CONTENT_SAVER_PARTIAL_INVALID_SELECTED {
@@ -40,18 +59,15 @@
   background-color: rgba(179, 116, 0, 0.75);
   z-index: 999;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-
-.CONTENT_SAVER_INACTIVE_HIGHLIGHT {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(66, 222, 84, 0.35);
-  z-index: 999;
-  cursor: pointer;
+.CONTENT_SAVER_SELECTED_DETAIL {
+  color: white;
+  font-size: 5rem;
+  font-family: fantasy;
 }
 
 .capture-cursor {
