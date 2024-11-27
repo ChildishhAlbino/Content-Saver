@@ -20,6 +20,29 @@
   cursor: pointer;
 }
 
+.CONTENT_SAVER_INVALID_SELECTED {
+  position: absolute;
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(123, 25, 0, 0.75);
+  z-index: 999;
+  cursor: pointer;
+}
+
+.CONTENT_SAVER_PARTIAL_INVALID_SELECTED {
+  position: absolute;
+  top: anchor(top);
+  left: anchor(left);
+  bottom: anchor(bottom);
+  right: anchor(right);
+  background-color: rgba(179, 116, 0, 0.75);
+  z-index: 999;
+  cursor: pointer;
+}
+
+
 .CONTENT_SAVER_INACTIVE_HIGHLIGHT {
   position: absolute;
   top: anchor(top);

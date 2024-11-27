@@ -7,6 +7,8 @@ import {
   TOGGLED_ON_HIGHLIGHT_CLASS_NAME,
   TOGGLE_KEY_PRESSES,
   SELECTED_CLASS_NAME,
+  INVALID_SELECTED_CLASS_NAME,
+  PARTIAL_INVALID_SELECTED_CLASS_NAME,
 } from "./constants";
 import {
   EVENT_TYPE,
@@ -103,9 +105,9 @@ const getContentFromPoint = (x, y) => {
     let filtered = elementsFromP.filter((element) => {
       return elementHasValidContent(element)
     });
-    console.log("parent search", { filtered });
+    // console.log("parent search", { filtered });
     if (filtered.length == 0) {
-      console.log("Searching through child elements");
+      // console.log("Searching through child elements");
       elementloop: for (const element of elementsFromP) {
         const children = element.children
         for (const child of children) {
@@ -120,7 +122,7 @@ const getContentFromPoint = (x, y) => {
 
       // filtered = children.filter(element => elementHasValidContent(element))
     }
-    console.log("full search", { filtered, x, y });
+    // console.log("full search", { filtered, x, y });
 
     var firsts = [
       filtered.find((element) => {
@@ -193,10 +195,10 @@ const isSelectedElement = (element) => {
   console.log({ element, parent });
   const grandparent = parent.parentElement;
   const childOfParentClass = parent.querySelector(
-    toSelector(SELECTED_CLASS_NAME)
+    getSelectedOverlayQuerySelector()
   );
   const childOfGrandparentClass = grandparent.querySelector(
-    toSelector(SELECTED_CLASS_NAME)
+    getSelectedOverlayQuerySelector()
   );
   console.log({ element, grandparent, childOfGrandparentClass, childOfParentClass });
   const selectedUrls = getMediaSourcesFromHoveredElements([element])
@@ -207,7 +209,7 @@ const isSelectedElement = (element) => {
   const uniqueItems = [...(new Set(joined))]
   const numUnique = uniqueItems.length
 
-  console.log({ selectedUrls, matchingSaverTags, totalItems, numUnique });
+  // console.log({ selectedUrls, matchingSaverTags, totalItems, numUnique });
   // this fixes the issue where some sliders only allowed 1 element to be selected
   return childOfParentClass || (childOfGrandparentClass && (numUnique == selectedUrls))
 };
@@ -255,23 +257,42 @@ const addSelectedOverlay = (selected) => {
     const filteredSources = getMediaSourcesFromHoveredElements(
       filtered.filter((item) => !!item)
     );
+
+    const blobUrls = filteredSources.filter(source => source.includes("blob:"))
+    let className = SELECTED_CLASS_NAME
+
+    if (blobUrls.length == filteredSources.length) {
+      className = INVALID_SELECTED_CLASS_NAME
+    } else if (blobUrls.length != 0) {
+      className = PARTIAL_INVALID_SELECTED_CLASS_NAME
+    }
+
+    console.log({ className });
+
     const parent = targetElement.parentElement;
     let overlayElement = document.createElement("span");
-    overlayElement.className += SELECTED_CLASS_NAME;
+    overlayElement.className += className;
     overlayElement.contentSaverTargets = filteredSources;
     overlayElement.style.height = `${targetElement.offsetHeight}px`;
     overlayElement.style.width = `${targetElement.offsetWidth}px`;
-    // parent.appendChild(div);
     parent.insertBefore(overlayElement, targetElement)
     overlays.push(overlayElement);
     console.log("overlays", overlays.length);
   }
 };
 
+function getSelectedOverlayQuerySelector() {
+  const classNames = [SELECTED_CLASS_NAME, INVALID_SELECTED_CLASS_NAME, PARTIAL_INVALID_SELECTED_CLASS_NAME]
+  const selectors = classNames.map(toSelector)
+  const querySelector = selectors.join(", ")
+  return querySelector
+}
+
 const removeSelectedOverlay = (highlighted) => {
   highlighted.forEach((element) => {
     const parent = element.parentElement;
-    const selector = parent.querySelector(toSelector(SELECTED_CLASS_NAME));
+
+    const selector = parent.querySelector(getSelectedOverlayQuerySelector());
     if (selector) {
       selector.parentElement.removeChild(selector);
       overlays = overlays.filter((element) => element !== selector);
@@ -403,7 +424,7 @@ const clearHoverCSS = () => {
 };
 
 const clearSelectedCSS = () => {
-  let overlays = document.querySelectorAll(toSelector(SELECTED_CLASS_NAME));
+  let overlays = document.querySelectorAll(getSelectedOverlayQuerySelector());
   overlays.forEach((element) => {
     element.parentElement.removeChild(element);
   });
