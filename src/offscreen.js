@@ -14,7 +14,7 @@ import { listenForMessages } from "./messaging/message-handler";
 import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
 import { createMessage, sleep } from "./util";
 
-const zipAndDownloadTime = 2
+const zipAndDownloadTime = 10
 const historyClearTime = 5 * 60
 const maxBlobSize = 2
 const DOWNLOADS = {}

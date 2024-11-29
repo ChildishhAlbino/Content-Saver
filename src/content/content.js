@@ -22,6 +22,7 @@ import {
 import { createMutationObserver, observe } from "./observer";
 
 const OBSERVER = createMutationObserver();
+const MEDIA_URL_REGEX = /(http[s]*:\/\/)([a-z\-_0-9\/.]+)\.([a-z.]{2,3})\/([a-z0-9\-_\/._~:?#\[\]@!$&'()*+,;=%]*)([a-z0-9]+\.)(jpg|jpeg|png|webp|mp4|avi|webm)/gi
 
 let currentHighlightClassName = TOGGLED_ON_HIGHLIGHT_CLASS_NAME;
 
@@ -99,6 +100,8 @@ const toSelector = (className) => {
 const getContentFromPoint = (x, y) => {
   // on mouse down print out the element with the mouse is currently over
   var elementsFromP = document.elementsFromPoint(x, y);
+  // console.log({ elementsFromP });
+
   let button = elementsFromP.find((element) => {
     return element.tagName === "BUTTON";
   });
@@ -126,6 +129,9 @@ const getContentFromPoint = (x, y) => {
     // console.log("full search", { filtered, x, y });
 
     var firsts = [
+      filtered.find((element) => {
+        return element.tagName === "A";
+      }),
       filtered.find((element) => {
         return element.tagName == "VIDEO";
       }),
@@ -159,6 +165,13 @@ function elementHasValidContent(element) {
   }
 }
 
+function doesATagHasValidContent(element) {
+  const elementHasValidHref = !!element.href
+  const elementHrefIsValidMediaUrl = MEDIA_URL_REGEX.test(element.href)
+  // console.log({ element, elementHasValidHref, elementHrefIsValidMediaUrl });
+  return elementHasValidHref && elementHrefIsValidMediaUrl
+}
+
 const hoverContent = (event) => {
   cursorX = event.clientX;
   cursorY = event.clientY;
@@ -167,7 +180,7 @@ const hoverContent = (event) => {
     const filteredSources = getMediaSourcesFromHoveredElements(
       filtered.filter((item) => !!item)
     );
-    console.log({ filteredSources });
+    // console.log({ filteredSources });
     clearHoverCSS();
     filtered.forEach((targetElement) => {
       const parent = targetElement.parentElement;
@@ -184,7 +197,7 @@ const hoverContent = (event) => {
         overlayDiv.clearListeners = () => {
           parent.removeEventListener("contextmenu", preventContextMenu);
         };
-        console.log({ div: overlayDiv, t: overlayDiv.contentSaverTargets });
+        // console.log({ div: overlayDiv, t: overlayDiv.contentSaverTargets });
         parent.insertBefore(overlayDiv, targetElement);
       }
     });
@@ -237,7 +250,6 @@ const selectContent = (filtered) => {
 
 const addSelectedOverlay = (selected) => {
   let filtered = selected;
-
   const firsts = [
     filtered.find((element) => {
       return element.tagName === "IMG";
@@ -276,7 +288,7 @@ const addSelectedOverlay = (selected) => {
       detailElement.innerText = `${numValid}V + ${numInvalid}I`
     }
 
-    console.log({ blobUrls, filteredSources, className });
+    // console.log({ blobUrls, filteredSources, className });
 
     const parent = targetElement.parentElement;
     let overlayElement = document.createElement("span");
@@ -370,40 +382,10 @@ function getMediaSourcesFromOverlays() {
 }
 
 const getMediaSourcesFromHoveredElements = (selectedElements) => {
-  console.log("GETTING SRCS", { selectedElements });
+  // console.log("GETTING SRCS", { selectedElements });
   if (selectedElements.length > 0) {
-    let srcs = selectedElements.map((element) => {
-      if (element.href) {
-        console.log(element.href);
-        return element.href;
-      }
-
-      if (element.style.backgroundImage) {
-        const pattern =
-          /https?:\/\/(www.)?[-a-zA-Z0-9@:%._+~#=]{1,256}.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
-        let re = new RegExp(pattern);
-        let match = element.style.backgroundImage.match(re);
-        if (match && match[0]) {
-          return [match[0], element.currentSrc, element.src];
-        }
-      }
-      if (element.srcset) {
-        return getSrcSetURL(element);
-      }
-      if (element.currentSrc) {
-        console.log({ element, source: element.currentSrc });
-        return element.currentSrc;
-      }
-      if (element.src) {
-        return element.src;
-      } else {
-        if (element.children && element.children[0]) {
-          return element.children[0].src;
-        }
-      }
-    });
-    let flat = srcs.flat().filter((item) => item !== "");
-
+    let sources = selectedElements.map(getSourcesFromElement);
+    const flat = sources.flat(Infinity).filter((item) => item !== "");
     // replace .md.* urls with source file
     const replaced = flat.map(src => {
       if (!src) {
@@ -414,6 +396,44 @@ const getMediaSourcesFromHoveredElements = (selectedElements) => {
     console.log({ srcs: replaced })
     return replaced;
   }
+};
+
+function getSourcesFromElement(element) {
+  const sources = []
+  if (element.href) {
+    sources.push(element.href)
+  }
+
+  if (element.style.backgroundImage) {
+    const pattern =
+      /https?:\/\/(www.)?[-a-zA-Z0-9@:%._+~#=]{1,256}.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
+    let re = new RegExp(pattern);
+    let match = element.style.backgroundImage.match(re);
+    if (match && match[0]) {
+      sources.push([match[0], element.currentSrc, element.src])
+    }
+  }
+  if (element.srcset) {
+    sources.push(getSrcSetURL(element))
+  }
+  if (element.currentSrc) {
+    sources.push(element.currentSrc)
+  }
+  if (element.src) {
+    sources.push(element.src);
+  } else {
+    if (element.children && element.children[0]) {
+      sources.push(element.children[0].src)
+    }
+  }
+
+  const parentElement = element.parentElement
+  // Some sites have the full-size image url in the parent A tag
+  if (!!parentElement && parentElement.tagName == "A" && doesATagHasValidContent(parentElement)) {
+    sources.push(parentElement.href)
+  }
+
+  return [...new Set(sources)]
 };
 
 const preventContextMenu = (e) => {
