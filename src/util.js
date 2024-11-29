@@ -32,3 +32,8 @@ export function validateMessage(message, validator) {
     const messageHasNoDestination = !message.DESTINATION
     return (messageHasSource && (validatorIsDestination || messageHasNoDestination))
 }
+
+
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}

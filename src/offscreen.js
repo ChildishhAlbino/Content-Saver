@@ -1,7 +1,7 @@
 import { SOURCES } from "./sources";
-import { v5 as uuidv5 } from 'uuid';
+import { v5 as uuidv5, v4 as uuidv4 } from 'uuid';
 import { createDownloadItem, DOWNLOAD_STATUS } from './downloadUtils';
-import { zipResponses, NAMESPACE_URL } from './backgroundUtils'
+import { zipResponses as zipResponsesAndTriggerDownload, NAMESPACE_URL } from './backgroundUtils'
 import {
     writeDownloadItem,
     deleteDownload,
@@ -12,12 +12,17 @@ import {
 } from './persistence/downloads'
 import { listenForMessages } from "./messaging/message-handler";
 import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
-import { createMessage } from "./util";
+import { createMessage, sleep } from "./util";
 
+const zipAndDownloadTime = 2
 const historyClearTime = 5 * 60
 const maxBlobSize = 2
+const DOWNLOADS = {}
 
 let clearHistoryTimer = null
+let zipAndDownloadTimer = null
+let isZipping = false
+let numZipFailures = 0
 
 const referenceHandlers = {
     [DELETE_DOWNLOAD_ITEM]: deleteDownloadItem,
@@ -40,9 +45,10 @@ window.addEventListener("DOMContentLoaded", () => {
 listenForMessages(SOURCES.OFFSCREEN, referenceHandlers, false)
 
 async function actionDownload(req) {
+    const downloadId = uuidv4()
     const { data, internal } = req.PAYLOAD
     let parentMetaData = {}
-    console.log("RECEIVED DATA:", data);
+    console.log("RECEIVED DATA:", data, downloadId);
     data.forEach(item => {
         const status = createDownloadItem(
             null,
@@ -54,22 +60,75 @@ async function actionDownload(req) {
             writeDownloadItem(item, status);
         }
     })
-    const downloads = Promise.all(data.map((element) => downloadItem(element, parentMetaData)))
-    downloads.then(async (res) => {
-        const responses = res.filter(item => !!item);
-        console.log('BLOBS', responses, responses.map(item => item.blob.size));
-        if (responses.length > 0) {
-            console.log("Zipping responses!");
-            zipResponses(responses).then(() => {
-                if (clearHistoryTimer) {
-                    clearTimeout(clearHistoryTimer);
-                }
-                clearHistoryTimer = setTimeout(clearHistory, historyClearTime * 1000);
-            });
-        } else {
-            console.log("List of response was empty.");
+    const downloads = await Promise.all(data.map((element) => downloadItem(element, parentMetaData)))
+    const validResponses = downloads.filter(item => !!item);
+    // console.log('BLOBS', validResponses, validResponses.map(item => item.blob.size));
+    if (validResponses.length > 0) {
+        resetClearHistoryTimer()
+        DOWNLOADS[downloadId] = validResponses
+        if (zipAndDownloadTimer) {
+            clearTimeout(zipAndDownloadTimer);
         }
-    });
+        zipAndDownloadTimer = setTimeout(zipBatchesAndDownload, zipAndDownloadTime * 1000);
+    } else {
+        console.log("List of response was empty.");
+    }
+}
+
+async function zipBatchesAndDownload() {
+    while (isZipping) {
+        console.log("Waiting for current zip to finish...")
+        await sleep(3000)
+    }
+    isZipping = true
+    console.log("Zipping responses!");
+    // take a snapshot of DOWNLOADS at the start of this function
+    const downloadEntries = Object.entries(DOWNLOADS)
+    if (downloadEntries.length < 1) {
+        console.log("Tried to download but DOWNLOADS was empty", { DOWNLOADS, downloadEntries })
+        return
+    }
+    // separate entries into ids and responses
+    const downloadIds = downloadEntries.map(([downloadId]) => downloadId)
+    const downloadResponses = downloadEntries.map(([_, data]) => data).flat()
+    console.log({ downloadIds, downloadResponses });
+    // Cleanup downloads IDs included in this zip to prevent inclusion in next trigger
+    clearDownloadIds(downloadIds)
+    // zip responses and trigger download
+    try {
+        await zipResponsesAndTriggerDownload(downloadResponses)
+    } catch (error) {
+        console.error(error)
+        // increment numZipFailures
+        numZipFailures += 1
+        if (numZipFailures < 3) {
+            // replace entries in DOWNLOADS for retry
+            for (const [downloadId, downloadResponse] of downloadEntries) {
+                DOWNLOADS[downloadId] = downloadResponse
+            }
+        } else {
+            console.log("Zipping DOWNLOADS failed with error too many times...", { downloadEntries });
+            clearDownloadIds(downloadIds)
+        }
+    }
+    console.log({ DOWNLOADS });
+
+    resetClearHistoryTimer()
+    isZipping = false
+}
+
+
+function clearDownloadIds(downloadIds) {
+    for (const downloadId of downloadIds) {
+        delete DOWNLOADS[downloadId]
+    }
+}
+
+function resetClearHistoryTimer() {
+    if (clearHistoryTimer) {
+        clearTimeout(clearHistoryTimer);
+    }
+    clearHistoryTimer = setTimeout(clearHistory, historyClearTime * 1000);
 }
 
 async function adHocDownload(req) {
