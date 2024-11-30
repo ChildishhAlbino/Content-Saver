@@ -10,6 +10,7 @@ import {
   INVALID_SELECTED_CLASS_NAME,
   PARTIAL_INVALID_SELECTED_CLASS_NAME,
   DETAIL_CLASS_NAME,
+  OVERLAY_CLASS_NAME as OVERLAY_ROOT_CLASS_NAME,
 } from "./constants";
 import {
   EVENT_TYPE,
@@ -20,6 +21,7 @@ import {
   isAllowedButton,
 } from "./control";
 import { createMutationObserver, observe } from "./observer";
+import { createOverlayElement, doesATagHasValidContent, elementHasValidContent } from "./utils";
 
 const OBSERVER = createMutationObserver();
 const MEDIA_URL_REGEX = /(http[s]*:\/\/)([a-z\-_0-9\/.]+)\.([a-z.]{2,3})\/([a-z0-9\-_\/._~:?#\[\]@!$&'()*+,;=%]*)([a-z0-9]+\.)(jpg|jpeg|png|webp|mp4|avi|webm)/gi
@@ -43,33 +45,29 @@ document.addEventListener("keydown", (event) => {
     }
 
     if (TOGGLE_KEY_PRESSES.includes(key)) {
-      event.preventDefault();
-      event.stopPropagation();
-      console.log({ key, event });
-      const filtered = getContentFromPoint(cursorX, cursorY);
-      if (filtered != null) {
-        selectContent(filtered);
-      }
+      // console.log({ key, event });
+      handleSelectContent(event, cursorX, cursorY)
     }
   }
 });
 
 function clickOnContent(event) {
   const { target, clientX, clientY } = event;
-  console.log({
-    target,
-    targetTagName: target.tagName,
-    csTargets: target.contentSaverTargets,
-  });
   const buttonIsAllowed = isAllowedButton(event)
   if (target.contentSaverTargets && buttonIsAllowed) {
-    event.preventDefault();
-    event.stopPropagation();
-    const filtered = getContentFromPoint(clientX, clientY);
-    if (filtered != null) {
-      selectContent(filtered);
-    }
+    handleSelectContent(event, clientX, clientY)
   }
+}
+
+function handleSelectContent(event, x, y) {
+  event.preventDefault();
+  event.stopPropagation();
+  var elementsAtMousePosition = document.elementsFromPoint(x, y);
+  const filtered = getContentFromElements(elementsAtMousePosition);
+  if (filtered != null) {
+    selectContent(filtered);
+  }
+  hoverContent(event)
 }
 
 chrome.runtime.onMessage.addListener((request) => {
@@ -97,22 +95,18 @@ const toSelector = (className) => {
   return `.${className}`;
 };
 
-const getContentFromPoint = (x, y) => {
-  // on mouse down print out the element with the mouse is currently over
-  var elementsFromP = document.elementsFromPoint(x, y);
-  // console.log({ elementsFromP });
-
-  let button = elementsFromP.find((element) => {
+const getContentFromElements = (elementsAtMousePosition) => {
+  let button = elementsAtMousePosition.find((element) => {
     return element.tagName === "BUTTON";
   });
   if (!button) {
-    let filtered = elementsFromP.filter((element) => {
+    let filtered = elementsAtMousePosition.filter((element) => {
       return elementHasValidContent(element)
     });
     // console.log("parent search", { filtered });
     if (filtered.length == 0) {
       // console.log("Searching through child elements");
-      elementloop: for (const element of elementsFromP) {
+      elementloop: for (const element of elementsAtMousePosition) {
         const children = element.children
         for (const child of children) {
           const childHasValidContent = elementHasValidContent(child)
@@ -151,54 +145,47 @@ const getContentFromPoint = (x, y) => {
   return null;
 };
 
-
-function elementHasValidContent(element) {
-  switch (element.tagName) {
-    case "VIDEO":
-      return true;
-    case "IMG":
-      return true;
-    case "DIV":
-      return !!element.style.backgroundImage;
-    default:
-      return false;
-  }
-}
-
-function doesATagHasValidContent(element) {
-  const elementHasValidHref = !!element.href
-  const elementHrefIsValidMediaUrl = MEDIA_URL_REGEX.test(element.href)
-  // console.log({ element, elementHasValidHref, elementHrefIsValidMediaUrl });
-  return elementHasValidHref && elementHrefIsValidMediaUrl
-}
+let hoverOverlayExists = false
 
 const hoverContent = (event) => {
-  cursorX = event.clientX;
-  cursorY = event.clientY;
-  const filtered = getContentFromPoint(cursorX, cursorY);
-  if (filtered != null && filtered.length > 0) {
+  // this is real jank
+  cursorX = event.clientX || cursorX;
+  // this is real jank
+  cursorY = event.clientY || cursorY;
+  const elementsAtMousePosition = document.elementsFromPoint(cursorX, cursorY)
+  const contentAtMousePosition = getContentFromElements(elementsAtMousePosition);
+
+  const highlightedOverlayInChain = elementsAtMousePosition.find(element => {
+    // this is jank
+    return element.className.includes("_HIGHLIGHT")
+  })
+
+  if (!!highlightedOverlayInChain) {
+    console.log("Cursor is on highlight, skipping logic...")
+    return
+  } else if (hoverOverlayExists = true) {
+    hoverOverlayExists = false
+    clearHoverCSS()
+  }
+
+  if (contentAtMousePosition != null && contentAtMousePosition.length > 0) {
     const filteredSources = getMediaSourcesFromHoveredElements(
-      filtered.filter((item) => !!item)
+      contentAtMousePosition.filter((item) => !!item)
     );
-    // console.log({ filteredSources });
-    clearHoverCSS();
-    filtered.forEach((targetElement) => {
+
+    hoverOverlayExists = true
+    contentAtMousePosition.forEach((targetElement) => {
       const parent = targetElement.parentElement;
       const childOfClass = parent.querySelector(
         toSelector(currentHighlightClassName)
       );
-      if (!childOfClass) {
-        parent.addEventListener("contextmenu", preventContextMenu);
-        let overlayDiv = document.createElement("span");
-        overlayDiv.className += currentHighlightClassName;
-        overlayDiv.style.height = `${targetElement.offsetHeight}px`;
-        overlayDiv.style.width = `${targetElement.offsetWidth}px`;
-        overlayDiv.contentSaverTargets = filteredSources;
-        overlayDiv.clearListeners = () => {
-          parent.removeEventListener("contextmenu", preventContextMenu);
-        };
-        // console.log({ div: overlayDiv, t: overlayDiv.contentSaverTargets });
-        parent.insertBefore(overlayDiv, targetElement);
+
+      const selectedOverlayInChain = elementsAtMousePosition.find(element => {
+        // this is jank
+        return element.className.includes("_SELECTED")
+      })
+      if (!childOfClass && !selectedOverlayInChain) {
+        createOverlayElement(parent, `${OVERLAY_ROOT_CLASS_NAME} ${currentHighlightClassName}`, targetElement, filteredSources)
       }
     });
   }
@@ -206,7 +193,7 @@ const hoverContent = (event) => {
 
 const isSelectedElement = (element) => {
   const parent = element.parentElement;
-  console.log({ element, parent });
+  // console.log({ element, parent });
   const grandparent = parent.parentElement;
   const childOfParentClass = parent.querySelector(
     getSelectedOverlayQuerySelector()
@@ -214,7 +201,7 @@ const isSelectedElement = (element) => {
   const childOfGrandparentClass = grandparent.querySelector(
     getSelectedOverlayQuerySelector()
   );
-  console.log({ element, grandparent, childOfGrandparentClass, childOfParentClass });
+  // console.log({ element, grandparent, childOfGrandparentClass, childOfParentClass });
   const selectedUrls = getMediaSourcesFromHoveredElements([element])
   const matchingSaverTags = childOfGrandparentClass ? childOfGrandparentClass.contentSaverTargets : []
   const joined = [...selectedUrls, ...matchingSaverTags]
@@ -233,18 +220,19 @@ const selectContent = (filtered) => {
     return !isSelectedElement(element);
   });
 
-  console.log("notHighlighted", notHighlighted);
+  // console.log("notHighlighted", notHighlighted);
 
   const highlighted = filtered.filter((element) => {
     return isSelectedElement(element);
   });
 
-  console.log("highlighted", highlighted);
+  // console.log("highlighted", highlighted);
 
   // if item is selected already, toggle it off
   // if item is not selected, toggle it on
+  clearHoverCSS()
   addSelectedOverlay(notHighlighted);
-  console.log("Removing items from list", highlighted);
+  // console.log("Removing items from list", highlighted);
   removeSelectedOverlay(highlighted);
 };
 
@@ -289,17 +277,16 @@ const addSelectedOverlay = (selected) => {
     }
 
     // console.log({ blobUrls, filteredSources, className });
-
-    const parent = targetElement.parentElement;
-    let overlayElement = document.createElement("span");
+    const parent = targetElement.parentElement
+    console.log("Adding selected overlay to element", { targetElement, filteredSources, parent })
+    const overlayElement = createOverlayElement(
+      parent,
+      `${OVERLAY_ROOT_CLASS_NAME} ${className}`,
+      targetElement,
+      filteredSources
+    )
     overlayElement.appendChild(detailElement)
-    overlayElement.className += className;
-    overlayElement.contentSaverTargets = filteredSources;
-    overlayElement.style.height = `${targetElement.offsetHeight}px`;
-    overlayElement.style.width = `${targetElement.offsetWidth}px`;
-    parent.insertBefore(overlayElement, targetElement)
-    overlays.push(overlayElement);
-    console.log("overlays", overlays.length);
+    overlays.push(overlayElement)
   }
 };
 
@@ -318,7 +305,7 @@ const removeSelectedOverlay = (highlighted) => {
     if (selector) {
       selector.parentElement.removeChild(selector);
       overlays = overlays.filter((element) => element !== selector);
-      console.log("overlays", overlays.length);
+      // console.log("overlays", overlays.length);
     }
   });
 };
@@ -377,7 +364,7 @@ function getMediaSourcesFromOverlays() {
     .map((element) => element.contentSaverTargets)
     .flat();
   const mediaSources = [...new Set(selectedElements)];
-  console.log({ selectedOverlays, mediaSources });
+  // console.log({ selectedOverlays, mediaSources });
   return mediaSources;
 }
 
@@ -393,7 +380,7 @@ const getMediaSourcesFromHoveredElements = (selectedElements) => {
       }
       return src.replace(/.md(.*)/g, "$1")
     })
-    console.log({ srcs: replaced })
+    // console.log({ srcs: replaced })
     return replaced;
   }
 };
@@ -436,12 +423,8 @@ function getSourcesFromElement(element) {
   return [...new Set(sources)]
 };
 
-const preventContextMenu = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-};
-
 const clearHoverCSS = () => {
+  // console.log("Clearing hover css")
   let overlays = document.querySelectorAll(
     toSelector(currentHighlightClassName)
   );

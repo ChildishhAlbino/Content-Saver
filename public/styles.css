@@ -1,67 +1,48 @@
-.CONTENT_SAVER_HIGHLIGHT {
+html {
+  --cs-highlighted-colour: rgba(248, 74, 216, 0.4);
+  --cs-highlighted-inactive-colour: rgba(66, 222, 84, 0.35);
+  --cs-selected-colour: rgba(0, 26, 255, 0.55);
+  --cs-selected-partial-invalid-colour: rgba(179, 116, 0, 0.75);
+  --cs-selected-invalid-colour: rgba(123, 25, 0, 0.75);
+}
+
+.CONTENT_SAVER_OVERLAY {
   position: absolute;
   top: anchor(top);
   left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(248, 74, 216, 0.40);
+  /* bottom: anchor(bottom);
+  right: anchor(right); */
+  background-color: var(--cs-overlay-colour);
   z-index: 999;
   cursor: pointer;
   display: inline-flex;
+  margin: 0;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.CONTENT_SAVER_HIGHLIGHT {
+  --cs-overlay-colour: var(--cs-highlighted-colour)
 }
 
 .CONTENT_SAVER_INACTIVE_HIGHLIGHT {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(66, 222, 84, 0.35);
-  z-index: 999;
-  cursor: pointer;
-  display: inline-flex;
+  --cs-overlay-colour: var(--cs-highlighted-inactive-colour)
 }
 
 .CONTENT_SAVER_SELECTED {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(0, 26, 255, 0.55);
-  z-index: 998;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.CONTENT_SAVER_INVALID_SELECTED {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(123, 25, 0, 0.75);
-  z-index: 999;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;  
+  --cs-overlay-colour: var(--cs-selected-colour);
+  cursor: url(chrome-extension://__MSG_@@extension_id__/icons/remove-cursor.png), auto !important;
 }
 
 .CONTENT_SAVER_PARTIAL_INVALID_SELECTED {
-  position: absolute;
-  top: anchor(top);
-  left: anchor(left);
-  bottom: anchor(bottom);
-  right: anchor(right);
-  background-color: rgba(179, 116, 0, 0.75);
-  z-index: 999;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  --cs-overlay-colour: var(--cs-selected-partial-invalid-colour);
+  cursor: url(chrome-extension://__MSG_@@extension_id__/icons/remove-cursor.png), auto !important;
+}
+
+.CONTENT_SAVER_INVALID_SELECTED {
+  --cs-overlay-colour: var(--cs-selected-invalid-colour);
+  cursor: url(chrome-extension://__MSG_@@extension_id__/icons/remove-cursor.png), auto !important;
 }
 
 .CONTENT_SAVER_SELECTED_DETAIL {

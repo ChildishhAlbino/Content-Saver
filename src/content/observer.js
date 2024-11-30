@@ -36,7 +36,6 @@ function callback(mutationList, observer) {
 };
 
 
-
 export function createMutationObserver() {
     // Create an observer instance linked to the callback function
     const observer = new MutationObserver(callback);

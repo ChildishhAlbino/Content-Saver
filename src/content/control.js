@@ -27,7 +27,7 @@ function getAllowedButton() {
 export function isAllowedButton(event) {
     const allowedButton = getAllowedButton()
     const buttonIsAllowedButton = event.button === allowedButton
-    console.log({ allowedButton, b: event.button, buttonIsAllowedButton });
+    // console.log({ allowedButton, b: event.button, buttonIsAllowedButton });
     return buttonIsAllowedButton
 }
 
