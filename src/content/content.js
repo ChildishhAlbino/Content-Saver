@@ -21,10 +21,9 @@ import {
   isAllowedButton,
 } from "./control";
 import { createMutationObserver, observe } from "./observer";
-import { createOverlayElement, doesATagHasValidContent, elementHasValidContent } from "./utils";
+import { createDetailElement, createOverlayElement, doesATagHasValidContent, elementHasValidContent } from "./utils";
 
 const OBSERVER = createMutationObserver();
-const MEDIA_URL_REGEX = /(http[s]*:\/\/)([a-z\-_0-9\/.]+)\.([a-z.]{2,3})\/([a-z0-9\-_\/._~:?#\[\]@!$&'()*+,;=%]*)([a-z0-9]+\.)(jpg|jpeg|png|webp|mp4|avi|webm)/gi
 
 let currentHighlightClassName = TOGGLED_ON_HIGHLIGHT_CLASS_NAME;
 
@@ -45,7 +44,6 @@ document.addEventListener("keydown", (event) => {
     }
 
     if (TOGGLE_KEY_PRESSES.includes(key)) {
-      // console.log({ key, event });
       handleSelectContent(event, cursorX, cursorY)
     }
   }
@@ -161,7 +159,7 @@ const hoverContent = (event) => {
   })
 
   if (!!highlightedOverlayInChain) {
-    console.log("Cursor is on highlight, skipping logic...")
+    // console.log("Cursor is on highlight, skipping logic...")
     return
   } else if (hoverOverlayExists = true) {
     hoverOverlayExists = false
@@ -185,7 +183,9 @@ const hoverContent = (event) => {
         return element.className.includes("_SELECTED")
       })
       if (!childOfClass && !selectedOverlayInChain) {
-        createOverlayElement(parent, `${OVERLAY_ROOT_CLASS_NAME} ${currentHighlightClassName}`, targetElement, filteredSources)
+        var overlayElement = createOverlayElement(parent, `${OVERLAY_ROOT_CLASS_NAME} ${currentHighlightClassName}`, targetElement, filteredSources)
+        const detailElement = createDetailElement(filteredSources.length)
+        overlayElement.appendChild(detailElement)
       }
     });
   }
@@ -220,13 +220,9 @@ const selectContent = (filtered) => {
     return !isSelectedElement(element);
   });
 
-  // console.log("notHighlighted", notHighlighted);
-
   const highlighted = filtered.filter((element) => {
     return isSelectedElement(element);
   });
-
-  // console.log("highlighted", highlighted);
 
   // if item is selected already, toggle it off
   // if item is not selected, toggle it on
@@ -259,10 +255,7 @@ const addSelectedOverlay = (selected) => {
       filtered.filter((item) => !!item)
     ).filter(item => !!item)
     const numTotal = filteredSources.length
-    const detailElement = document.createElement("p")
-    detailElement.className = DETAIL_CLASS_NAME
-    detailElement.innerText = `${numTotal}`
-
+    const detailElement = createDetailElement(numTotal)
     const blobUrls = filteredSources.filter(source => source.includes("blob:"))
     const numInvalid = blobUrls.length
     const numValid = numTotal - numInvalid
@@ -415,8 +408,16 @@ function getSourcesFromElement(element) {
   }
 
   const parentElement = element.parentElement
+
+  const parentElementIsNotNull = !!parentElement
+  const parentElementIsATag = parentElement.tagName == "A"
+  const aTagHasValidContent = doesATagHasValidContent(parentElement)
+  console.log({
+    parentElementIsNotNull, parentElementIsATag, aTagHasValidContent, ref: parentElement.href
+  });
+
   // Some sites have the full-size image url in the parent A tag
-  if (!!parentElement && parentElement.tagName == "A" && doesATagHasValidContent(parentElement)) {
+  if (parentElementIsNotNull && parentElementIsATag && aTagHasValidContent) {
     sources.push(parentElement.href)
   }
 

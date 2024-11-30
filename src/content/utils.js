@@ -1,4 +1,7 @@
-const MEDIA_URL_REGEX = /(http[s]*:\/\/)([a-z\-_0-9\/.]+)\.([a-z.]{2,3})\/([a-z0-9\-_\/._~:?#\[\]@!$&'()*+,;=%]*)([a-z0-9]+\.)(jpg|jpeg|png|webp|mp4|avi|webm)/gi
+import { DETAIL_CLASS_NAME } from "./constants";
+
+// NOTE: using a global regex here caused stateful behaviour. Take care in changing the regex flags
+const MEDIA_URL_REGEX = /(http[s]*:\/\/)([a-z\-_0-9\/.]+)\.([a-z.]{2,3})\/([a-z0-9\-_\/._~:?#\[\]@!$&'()*+,;=%]*)([a-z0-9]+\.)(jpg|jpeg|png|webp|mp4|avi|webm)/i
 
 export function elementHasValidContent(element) {
     switch (element.tagName) {
@@ -16,7 +19,6 @@ export function elementHasValidContent(element) {
 export function doesATagHasValidContent(element) {
     const elementHasValidHref = !!element.href
     const elementHrefIsValidMediaUrl = MEDIA_URL_REGEX.test(element.href)
-    // console.log({ element, elementHasValidHref, elementHrefIsValidMediaUrl });
     return elementHasValidHref && elementHrefIsValidMediaUrl
 }
 
@@ -38,4 +40,11 @@ export function createOverlayElement(parent, className, targetElement, filteredS
     // console.log({ div: overlayDiv, t: overlayDiv.contentSaverTargets });
     parent.insertBefore(overlayElement, targetElement);
     return overlayElement
+}
+
+export function createDetailElement(innerText) {
+    const detailElement = document.createElement("p")
+    detailElement.className = DETAIL_CLASS_NAME
+    detailElement.innerText = `${innerText}`
+    return detailElement
 }
