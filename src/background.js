@@ -26,7 +26,7 @@ async function downloadZipFile(req) {
 
 function handleStorageUpdate(req) {
   const { numFiles } = req.PAYLOAD
-  console.log({ numFiles });
+  console.log("UPDATING BADGE", { numFiles });
   if (numFiles > 0) {
     chrome.action.setBadgeText({ text: `${numFiles}` });
   } else {

@@ -8,7 +8,8 @@ import {
     clearAllDownloads,
     getDownloadItem,
     getHydratedDownloads,
-    getAllDownloads
+    getAllDownloads,
+    getInProgressDownloads
 } from './persistence/downloads'
 import { listenForMessages } from "./messaging/message-handler";
 import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
@@ -37,7 +38,7 @@ window.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage(createMessage(
         SOURCES.OFFSCREEN,
         SOURCES.BACKGROUND,
-        { numFiles: getAllDownloads().length },
+        { numFiles: getInProgressDownloads().length },
         HANDLE_STORAGE_UPDATE
     ))
 })

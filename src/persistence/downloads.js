@@ -2,6 +2,7 @@ import { write, get, clear } from "./store"
 import { HANDLE_STORAGE_UPDATE } from "../commands";
 import { SOURCES } from "../sources";
 import { createMessage } from "../util";
+import { DOWNLOAD_STATUS } from "../downloadUtils";
 
 export const writeDownloadItem = (key, status) => {
     const existing = get(key)
@@ -9,6 +10,7 @@ export const writeDownloadItem = (key, status) => {
         newItem(key)
     }
     write(key, JSON.stringify(status))
+    sendStoreUpdateMessage()
 }
 
 export const getDownloadItem = (key) => {
@@ -51,11 +53,17 @@ export const clearAllDownloads = () => {
     downloads.forEach(deleteDownload)
 }
 
+export function getInProgressDownloads() {
+    const allDownloads = getAllDownloads()
+    return allDownloads.map(getDownloadItem).filter(item => !!item && item.status === DOWNLOAD_STATUS.PENDING)
+}
+
 function sendStoreUpdateMessage() {
+    const numFiles = getInProgressDownloads().length
     chrome.runtime.sendMessage(createMessage(
         SOURCES.OFFSCREEN,
         SOURCES.BACKGROUND,
-        { numFiles: getAllDownloads().length },
+        { numFiles: numFiles },
         HANDLE_STORAGE_UPDATE
     ))
 }
