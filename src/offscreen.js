@@ -14,7 +14,7 @@ const { DateTime } = require("luxon");
 import { listenForMessages } from "./messaging/message-handler";
 import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
 import { createMessage, sleep } from "./util";
-import { getTimeStamp, writeTimeStamp } from "./persistence/timestamps";
+import { writeTimeStamp, deleteTimeStamp } from "./persistence/timestamps";
 
 const zipAndDownloadWindow = 10
 const historyClearTime = 5 * 60
@@ -85,14 +85,15 @@ async function zipBatchesAndDownload() {
         console.log("Waiting for current zip to finish...")
         await sleep(3000)
     }
-    isZipping = true
-    console.log("Zipping responses!");
+    deleteTimeStamp("nextZipTime")
     // take a snapshot of DOWNLOADS at the start of this function
     const downloadEntries = Object.entries(DOWNLOADS)
     if (downloadEntries.length < 1) {
         console.log("Tried to download but DOWNLOADS was empty", { DOWNLOADS, downloadEntries })
         return
     }
+    isZipping = true
+    console.log("Zipping responses!");
     // separate entries into ids and responses
     const downloadIds = downloadEntries.map(([downloadId]) => downloadId)
     const downloadResponses = downloadEntries.map(([_, data]) => data).flat()
@@ -116,8 +117,6 @@ async function zipBatchesAndDownload() {
             clearDownloadIds(downloadIds)
         }
     }
-    console.log({ DOWNLOADS });
-
     resetClearHistoryTimer()
     isZipping = false
 }
@@ -319,7 +318,7 @@ const getItemBlob = async (element, parentMetaData, isReattempt) => {
                 null,
                 null,
                 DOWNLOAD_STATUS.ERROR,
-                { error: e }
+                { ...parentMetaData, error: e }
             )
             writeDownloadItem(element, statusItem)
         }
