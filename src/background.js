@@ -83,6 +83,37 @@ const toggleHighlightForTab = (tabs) => {
   activated = !activated;
 };
 
+async function goToPrevTab() {
+  console.log("Going to previous tab")
+  const currentWindowTabs = await getTabs({ currentWindow: true })
+  const totalTabs = currentWindowTabs.length
+  const activeTab = currentWindowTabs.find(tab => tab.active)
+  const nextTabIndex = activeTab.index == 0 ? totalTabs - 1 : activeTab.index - 1
+  const nextTab = currentWindowTabs.find(tab => tab.index == nextTabIndex)
+  chrome.tabs.update(nextTab.id, { active: true })
+}
+
+async function goToNextTab() {
+  console.log("Going to next tab")
+  // find active tab in current window
+  const currentWindowTabs = await getTabs({ currentWindow: true })
+  const totalTabs = currentWindowTabs.length
+  const activeTab = currentWindowTabs.find(tab => tab.active)
+  const nextTabIndex = activeTab.index == totalTabs - 1 ? 0 : activeTab.index + 1
+  const nextTab = currentWindowTabs.find(tab => tab.index == nextTabIndex)
+  chrome.tabs.update(nextTab.id, { active: true })
+}
+
+
+async function getTabs(queryOptions) {
+  const promise = new Promise((resolve, _) => {
+    chrome.tabs.query(queryOptions, (tabs) => {
+      resolve(tabs)
+    })
+  })
+  return await promise
+}
+
 function setHighlightForTab(tab, value) {
   chrome.tabs.sendMessage(tab.id, value);
 }
@@ -103,6 +134,15 @@ function setup() {
       if (command == "toggle-highlight-content") {
         toggleHighlight();
       }
+
+      if (command == "switch-to-next-tab") {
+        activated && goToNextTab()
+      }
+
+      if (command == "switch-to-prev-tab") {
+        activated && goToPrevTab()
+      }
+
     });
     SETUP_COMPLETE = true;
   }

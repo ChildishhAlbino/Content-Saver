@@ -43,6 +43,20 @@
                 "mac": "MacCtrl+Shift+Space"
             },
             "description": "Toggle Highlight Content"
+        },
+        "switch-to-next-tab": {
+            "suggested_key": {
+                "default": "Ctrl+Right",
+                "mac": "MacCtrl+Left"
+            },
+            "description": "Whilst Highlight Active, Switch to Next Tab"
+        },
+        "switch-to-prev-tab": {
+            "suggested_key": {
+                "default": "Ctrl+Left",
+                "mac": "MacCtrl+Left"
+            },
+            "description": "Whilst Highlight Active, Switch to Prev Tab"
         }
     },
     "web_accessible_resources": [
