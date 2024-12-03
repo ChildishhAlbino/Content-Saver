@@ -2,7 +2,7 @@ import React from 'react';
 import { DOWNLOAD_STATUS } from '../../downloadUtils';
 import { DeleteItemButton, DownloadAllButton } from '../buttons.jsx'
 import './downloadItem.scss'
-
+const { DateTime } = require("luxon");
 
 function isImage(contentType) {
     return contentType.includes("image/")
@@ -14,23 +14,22 @@ function isVideo(contentType) {
 
 function getJSXForElement(elementDetails, hideThumbnails) {
     const { metadata } = elementDetails
-    if (metadata) {
+    if (metadata?.contentType) {
         const { url: fullUrl, contentType, previewUrl } = metadata
         const elementIsImg = isImage(contentType)
         const elementIsVideo = isVideo(contentType)
         const className = hideThumbnails ? "hide-thumbnail" : ""
         const url = previewUrl || fullUrl
-        if (elementIsImg) {
-            return (
-                <img className={className} src={url} />
-            )
-        }
         if (elementIsVideo) {
             return (<video autoPlay loop className={className} muted>
                 <source src={url} />
             </video>)
         }
-
+        if (elementIsImg) {
+            return (
+                <img className={className} src={url} />
+            )
+        }
         return null
     }
     return null
@@ -40,6 +39,9 @@ export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, t
     const { status, metadata, downloaded, totalSize } = details
     const isPending = status === DOWNLOAD_STATUS.PENDING
     console.log({ status, isPending, element, details });
+    const { reqDateTime } = metadata
+    const itemReqDateTime = reqDateTime ? DateTime.fromISO(reqDateTime).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS) : null
+    console.log({ reqDateTime, itemReqDateTime });
 
     const fileSize = totalSize?.toFixed(2)
 
@@ -54,6 +56,7 @@ export const DownloadItem = ({ element, details, hideThumbnails, downloadItem, t
                         <label htmlFor="downloadPercent">{downloaded}%</label>
                     </>}
                     <h4>{status}</h4>
+                    {itemReqDateTime && <h4><i>{itemReqDateTime}</i></h4>}
                     {metadata?.error && typeof metadata?.error == "string" && <p>{metadata.error}</p>}
                 </div>
             </div>

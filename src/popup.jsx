@@ -11,6 +11,8 @@ import {
     getHydratedDownloads
 } from './persistence/downloads'
 import './popup.css'
+const { DateTime } = require("luxon");
+import { getTimeStamp } from './persistence/timestamps.js';
 
 const popupSource = SOURCES.POPUP
 class Popup extends React.Component {
@@ -28,13 +30,14 @@ class Popup extends React.Component {
         this.pageSelector = this.pageSelector.bind(this)
         this.shouldShowFile = this.shouldShowFile.bind(this)
         this.clearPage = this.clearPage.bind(this)
+        this.getNextZipTime = this.getNextZipTime.bind(this)
         this.state = {
             selectedPage: "Downloading",
             pages: ["Downloading", "Error", "All"],
             files: [],
-            hideThumbnails: true
+            hideThumbnails: true,
+            nextZipTime: null
         }
-
     }
 
     getHideThumbnailButton() {
@@ -76,9 +79,16 @@ class Popup extends React.Component {
         this.setState({ hideThumbnails: !this.state.hideThumbnails })
     }
 
+    getNextZipTime() {
+        return getTimeStamp("nextZipTime")
+    }
+
     dataUpdate() {
         let files = this.getFiles()
-        this.setState({ files })
+        let nextZipTime = this.getNextZipTime()
+        console.log({ nextZipTime });
+
+        this.setState({ files, nextZipTime })
     }
 
     componentDidMount() {
@@ -175,7 +185,7 @@ class Popup extends React.Component {
 
     render() {
         console.log(this.state)
-        const { pages, files } = this.state
+        const { pages, files, nextZipTime } = this.state
         return (
             <div className="content">
                 <div className="header-wrapper">
@@ -185,6 +195,7 @@ class Popup extends React.Component {
                         <ToggleThumbnailsButton onClick={this.toggleThumbnails} state={this.state.hideThumbnails} />
                         <ClearPageButton onClick={this.clearPage} />
                     </div>
+                    {!!nextZipTime && <div className="next-zip-time-container"><p><b>Next Zip Time:</b> <i>{nextZipTime.toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS)}</i></p></div>}
                     <div className="page-selector-wrapper">
                         {pages.map(item => {
                             return this.pageSelector(item)

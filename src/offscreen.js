@@ -8,14 +8,15 @@ import {
     clearAllDownloads,
     getDownloadItem,
     getHydratedDownloads,
-    getAllDownloads,
     getInProgressDownloads
 } from './persistence/downloads'
+const { DateTime } = require("luxon");
 import { listenForMessages } from "./messaging/message-handler";
 import { ACTION_DOWNLOAD, ADHOC_DOWNLOAD, CANCEL_DOWNLOAD, DELETE_DOWNLOAD_ITEM, DOWNLOAD_ALL, HANDLE_STORAGE_UPDATE } from "./commands";
 import { createMessage, sleep } from "./util";
+import { getTimeStamp, writeTimeStamp } from "./persistence/timestamps";
 
-const zipAndDownloadTime = 10
+const zipAndDownloadWindow = 10
 const historyClearTime = 5 * 60
 const maxBlobSize = 2
 const DOWNLOADS = {}
@@ -48,14 +49,16 @@ listenForMessages(SOURCES.OFFSCREEN, referenceHandlers, false)
 async function actionDownload(req) {
     const downloadId = uuidv4()
     const { data, internal } = req.PAYLOAD
-    let parentMetaData = {}
+    let parentMetaData = {
+        reqDateTime: DateTime.now().toISO()
+    }
     console.log("RECEIVED DATA:", data, downloadId);
     data.forEach(item => {
         const status = createDownloadItem(
             null,
             null,
             DOWNLOAD_STATUS.PENDING,
-            null
+            parentMetaData
         )
         if (!internal) {
             writeDownloadItem(item, status);
@@ -63,14 +66,15 @@ async function actionDownload(req) {
     })
     const downloads = await Promise.all(data.map((element) => downloadItem(element, parentMetaData)))
     const validResponses = downloads.filter(item => !!item);
-    // console.log('BLOBS', validResponses, validResponses.map(item => item.blob.size));
     if (validResponses.length > 0) {
         resetClearHistoryTimer()
         DOWNLOADS[downloadId] = validResponses
         if (zipAndDownloadTimer) {
             clearTimeout(zipAndDownloadTimer);
         }
-        zipAndDownloadTimer = setTimeout(zipBatchesAndDownload, zipAndDownloadTime * 1000);
+        zipAndDownloadTimer = setTimeout(zipBatchesAndDownload, zipAndDownloadWindow * 1000);
+        const nextZipTime = DateTime.now().plus({ seconds: zipAndDownloadWindow })
+        writeTimeStamp("nextZipTime", nextZipTime)
     } else {
         console.log("List of response was empty.");
     }
@@ -197,7 +201,7 @@ const downloadItem = async (element, parentMetaData) => {
             null,
             null,
             DOWNLOAD_STATUS.ERROR,
-            { error: "Cannot download blob urls from other domains." }
+            { ...parentMetaData, ...{ error: "Cannot download blob urls from other domains." } }
         )
         writeDownloadItem(element, status);
         return null

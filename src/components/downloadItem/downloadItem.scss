@@ -1,6 +1,7 @@
 .file-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  border: var(--bg-colour) 3px solid;
 }
 
 .file-container-content {

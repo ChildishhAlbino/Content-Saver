@@ -57,12 +57,21 @@ body {
   background-color: var(--bg-colour);
 }
 
+.next-zip-time-container {
+  height: min-content;
+  width: 100%;
+  background-color: var(--bg-colour);
+  text-align: center;
+}
+
 .header-wrapper {
   width: 100%;
   position: sticky;
   left: 0;
   top: 0;
   z-index: 999;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-selector-wrapper {
